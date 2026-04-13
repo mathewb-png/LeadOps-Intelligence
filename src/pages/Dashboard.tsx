@@ -1,12 +1,17 @@
 import { Link } from "react-router-dom";
 import {
   Users,
-  UserPlus,
   Target,
   TrendingUp,
   Gauge,
   DollarSign,
   ArrowRight,
+  Zap,
+  Rocket,
+  Brain,
+  Database,
+  Filter,
+  FileSpreadsheet,
 } from "lucide-react";
 import {
   BarChart,
@@ -19,131 +24,146 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
 } from "recharts";
-import { mockLeads } from "@/data/mockLeads";
 import StatCard from "@/components/StatCard";
-import LeadCard from "@/components/LeadCard";
-import StatusBadge from "@/components/StatusBadge";
-import { LeadStatus } from "@/types";
 
-const statusCounts = mockLeads.reduce(
-  (acc, lead) => {
-    acc[lead.status] = (acc[lead.status] || 0) + 1;
-    return acc;
-  },
-  {} as Record<string, number>
-);
-
-const pieData = Object.entries(statusCounts).map(([name, value]) => ({
-  name: name.charAt(0).toUpperCase() + name.slice(1),
-  value,
-}));
-
-const PIE_COLORS = ["#6366f1", "#f59e0b", "#8b5cf6", "#3b82f6", "#ef4444", "#10b981", "#ec4899"];
-
-const scoreDistribution = [
-  { range: "0-20", count: mockLeads.filter((l) => l.score <= 20).length },
-  { range: "21-40", count: mockLeads.filter((l) => l.score > 20 && l.score <= 40).length },
-  { range: "41-60", count: mockLeads.filter((l) => l.score > 40 && l.score <= 60).length },
-  { range: "61-80", count: mockLeads.filter((l) => l.score > 60 && l.score <= 80).length },
-  { range: "81-100", count: mockLeads.filter((l) => l.score > 80).length },
+const tierBreakdown = [
+  { name: "Primary", value: 4, color: "#10b981" },
+  { name: "Stakeholder", value: 4, color: "#3b82f6" },
+  { name: "Influence", value: 4, color: "#f59e0b" },
+  { name: "Peripheral", value: 3, color: "#f97316" },
+  { name: "Irrelevant", value: 4, color: "#ef4444" },
 ];
 
-const weeklyTrend = [
-  { week: "W1", leads: 8 },
-  { week: "W2", leads: 12 },
-  { week: "W3", leads: 15 },
-  { week: "W4", leads: 11 },
-  { week: "W5", leads: 18 },
-  { week: "W6", leads: 22 },
-  { week: "W7", leads: 19 },
-  { week: "W8", leads: 25 },
+const weeklyScores = [
+  { week: "Week 1", avgScore: 5.2 },
+  { week: "Week 2", avgScore: 6.1 },
+  { week: "Week 3", avgScore: 6.8 },
+  { week: "Week 4", avgScore: 7.3 },
+  { week: "Week 5", avgScore: 7.9 },
+  { week: "Week 6", avgScore: 8.2 },
+];
+
+const STEPS = [
+  {
+    icon: Brain,
+    title: "1. Define Campaign",
+    desc: "Describe your offering and ideal customer in the Campaign Workspace.",
+  },
+  {
+    icon: Users,
+    title: "2. Generate Persona",
+    desc: "AI produces 3 tiers of job titles and industry keywords for targeting.",
+  },
+  {
+    icon: Database,
+    title: "3. Fetch & Score Leads",
+    desc: "Pull leads from Apollo.io and auto-score them using the Richard Scale (0-10).",
+  },
+  {
+    icon: Filter,
+    title: "4. Refine & Exclude",
+    desc: "Review noise words, add exclusions, and re-fetch for cleaner results each cycle.",
+  },
+  {
+    icon: FileSpreadsheet,
+    title: "5. Export Strategic Sheet",
+    desc: "Download a tiered XLSX report ready for client delivery.",
+  },
 ];
 
 export default function Dashboard() {
-  const totalLeads = mockLeads.length;
-  const newLeads = mockLeads.filter((l) => l.status === "new").length;
-  const qualifiedLeads = mockLeads.filter((l) => l.status === "qualified").length;
-  const wonLeads = mockLeads.filter((l) => l.status === "won").length;
-  const avgScore = Math.round(mockLeads.reduce((a, l) => a + l.score, 0) / totalLeads);
-  const conversionRate = Math.round((wonLeads / totalLeads) * 100);
-
-  const topLeads = [...mockLeads].sort((a, b) => b.score - a.score).slice(0, 3);
-
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Your lead intelligence overview at a glance.
-        </p>
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            LeadOps Intelligence
+          </h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Automate the path from business problem to scored lead list.
+          </p>
+        </div>
+        <Link to="/workspace" className="btn-primary">
+          <Rocket className="h-4 w-4" /> Start Campaign
+        </Link>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          label="Total Leads"
-          value={totalLeads}
-          change="+12% from last month"
-          changeType="positive"
+          label="Total Scored Leads"
+          value="—"
+          change="Run a campaign to begin"
           icon={Users}
           iconColor="text-brand-600"
-          iconBg="bg-brand-50"
+          iconBg="bg-brand-50 dark:bg-brand-950"
         />
         <StatCard
-          label="New Leads"
-          value={newLeads}
-          change="+3 this week"
-          changeType="positive"
-          icon={UserPlus}
-          iconColor="text-blue-600"
-          iconBg="bg-blue-50"
-        />
-        <StatCard
-          label="Qualified"
-          value={qualifiedLeads}
+          label="Primary Leads"
+          value="—"
           icon={Target}
-          iconColor="text-purple-600"
-          iconBg="bg-purple-50"
-        />
-        <StatCard
-          label="Conversion"
-          value={`${conversionRate}%`}
-          change="+2.1% vs last quarter"
-          changeType="positive"
-          icon={TrendingUp}
           iconColor="text-emerald-600"
-          iconBg="bg-emerald-50"
+          iconBg="bg-emerald-50 dark:bg-emerald-950"
         />
         <StatCard
-          label="Avg Score"
-          value={avgScore}
-          icon={Gauge}
+          label="Batch Value"
+          value="—"
+          icon={TrendingUp}
           iconColor="text-amber-600"
-          iconBg="bg-amber-50"
+          iconBg="bg-amber-50 dark:bg-amber-950"
         />
         <StatCard
-          label="Pipeline"
-          value="$2.4M"
-          change="+$340K this month"
-          changeType="positive"
-          icon={DollarSign}
-          iconColor="text-green-600"
-          iconBg="bg-green-50"
+          label="Avg Richard Score"
+          value="—"
+          icon={Gauge}
+          iconColor="text-blue-600"
+          iconBg="bg-blue-50 dark:bg-blue-950"
         />
+      </div>
+
+      <div className="card overflow-hidden">
+        <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+            How It Works
+          </h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            The LeadOps workflow in 5 steps
+          </p>
+        </div>
+        <div className="grid gap-px bg-gray-100 dark:bg-gray-800 sm:grid-cols-5">
+          {STEPS.map((step) => (
+            <div
+              key={step.title}
+              className="flex flex-col items-center bg-white dark:bg-gray-900 p-5 text-center"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 dark:bg-brand-950">
+                <step.icon className="h-5 w-5 text-brand-600" />
+              </div>
+              <h3 className="mt-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
+                {step.title}
+              </h3>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                {step.desc}
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="card p-6">
-          <h2 className="text-base font-semibold text-gray-900">Lead Acquisition Trend</h2>
-          <p className="mt-1 text-xs text-gray-500">Weekly new leads over the past 8 weeks</p>
-          <div className="mt-4 h-64">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+            Score Improvement Over Time
+          </h2>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Average Richard Score per batch as exclusions are refined
+          </p>
+          <div className="mt-4 h-56">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={weeklyTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <BarChart data={weeklyScores}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="week" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" />
+                <YAxis domain={[0, 10]} tick={{ fontSize: 12 }} stroke="#94a3b8" />
                 <Tooltip
                   contentStyle={{
                     borderRadius: "8px",
@@ -151,59 +171,33 @@ export default function Dashboard() {
                     fontSize: "13px",
                   }}
                 />
-                <Line
-                  type="monotone"
-                  dataKey="leads"
-                  stroke="#6366f1"
-                  strokeWidth={2.5}
-                  dot={{ fill: "#6366f1", r: 4 }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="card p-6">
-          <h2 className="text-base font-semibold text-gray-900">Score Distribution</h2>
-          <p className="mt-1 text-xs text-gray-500">Lead quality score breakdown</p>
-          <div className="mt-4 h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={scoreDistribution}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="range" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: "8px",
-                    border: "1px solid #e2e8f0",
-                    fontSize: "13px",
-                  }}
-                />
-                <Bar dataKey="count" fill="#6366f1" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="avgScore" fill="#6366f1" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
-      </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
         <div className="card p-6">
-          <h2 className="text-base font-semibold text-gray-900">Pipeline by Status</h2>
-          <div className="mt-4 h-52">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+            Tier Distribution (Example)
+          </h2>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Lead quality breakdown from a sample batch
+          </p>
+          <div className="mt-4 h-56">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={pieData}
+                  data={tierBreakdown}
                   cx="50%"
                   cy="50%"
                   innerRadius={50}
-                  outerRadius={80}
+                  outerRadius={85}
                   paddingAngle={3}
                   dataKey="value"
                 >
-                  {pieData.map((_, index) => (
-                    <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                  {tierBreakdown.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip
@@ -217,61 +211,34 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </div>
           <div className="mt-2 flex flex-wrap justify-center gap-3">
-            {pieData.map((entry, i) => (
-              <div key={entry.name} className="flex items-center gap-1.5 text-xs text-gray-600">
-                <div
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
-                />
-                {entry.name} ({entry.value})
+            {tierBreakdown.map((entry) => (
+              <div key={entry.name} className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
+                <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+                {entry.name}
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="lg:col-span-2 card p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-gray-900">Top Leads</h2>
-              <p className="mt-1 text-xs text-gray-500">Highest scoring opportunities</p>
-            </div>
-            <Link
-              to="/leads"
-              className="flex items-center gap-1 text-sm font-medium text-brand-600 hover:text-brand-700"
-            >
-              View all <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-          <div className="mt-4 space-y-3">
-            {topLeads.map((lead) => (
-              <LeadCard key={lead.id} lead={lead} />
             ))}
           </div>
         </div>
       </div>
 
-      <div className="card overflow-hidden">
-        <div className="border-b border-gray-200 px-6 py-4">
-          <h2 className="text-base font-semibold text-gray-900">Recent Activity</h2>
-        </div>
-        <div className="divide-y divide-gray-100">
-          {mockLeads.slice(0, 5).map((lead) => (
-            <div key={lead.id} className="flex items-center justify-between px-6 py-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gray-100 text-xs font-bold text-gray-600">
-                  {lead.companyName.slice(0, 2).toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {lead.companyName}
-                  </p>
-                  <p className="text-xs text-gray-500">{lead.contactName}</p>
-                </div>
+      <div className="card p-6">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          Richard-Style Scoring Reference
+        </h2>
+        <div className="grid gap-3 sm:grid-cols-5">
+          {[
+            { range: "9–10", label: "Primary", desc: "Heads of SEO, Growth, Marketing, FinOps", color: "bg-emerald-500" },
+            { range: "7–8", label: "Stakeholder", desc: "GTM, Operations, Product leaders", color: "bg-blue-500" },
+            { range: "4–6", label: "Influence", desc: "Founders/CEOs at mid-sized firms", color: "bg-amber-500" },
+            { range: "1–3", label: "Peripheral", desc: "IT or Finance support roles", color: "bg-orange-500" },
+            { range: "0", label: "Irrelevant", desc: "Sales, HR, Admin, Junior roles", color: "bg-red-500" },
+          ].map((tier) => (
+            <div key={tier.label} className="rounded-xl bg-gray-50 dark:bg-gray-800 p-4 text-center">
+              <div className={`mx-auto flex h-10 w-10 items-center justify-center rounded-full ${tier.color} text-white text-sm font-bold`}>
+                {tier.range}
               </div>
-              <div className="flex items-center gap-3">
-                <StatusBadge status={lead.status as LeadStatus} />
-                <span className="text-xs text-gray-400 whitespace-nowrap">{lead.lastActivity}</span>
-              </div>
+              <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-gray-100">{tier.label}</p>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{tier.desc}</p>
             </div>
           ))}
         </div>
