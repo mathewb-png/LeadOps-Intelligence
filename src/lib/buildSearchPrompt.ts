@@ -2,15 +2,16 @@ import { PersonaOutput, CampaignLocale, Lead } from "@/types";
 import { ICP_EXCLUDE_KEYWORDS, LOCALIZED_EXCLUDE_KEYWORDS } from "@/lib/richardScoring";
 
 export interface SearchPromptFields {
-  companyJobTitle: string;
-  personTitles: string[];
-  personLocations: string[];
+  jobTitles: string[];
+  excludeJobTitles: string[];
+  locations: string[];
+  excludeLocations: string[];
   companyKeywords: string[];
-  excludeTitles: string[];
   seniority: string[];
   prompt: string;
 }
 
+// Matches the exact seniority values in the external tool
 const SENIORITY_MAP: Record<string, string[]> = {
   c_suite: ["ceo", "cfo", "cto", "coo", "cmo", "cio", "cpo", "chief"],
   founder: ["founder", "co-founder", "cofounder"],
@@ -19,7 +20,7 @@ const SENIORITY_MAP: Record<string, string[]> = {
   vp: ["vp", "vice president", "vice-president"],
   director: ["director", "directeur", "directrice"],
   head: ["head of", "head,"],
-  manager: ["manager", "gérant", "gerant", "responsable", "lead"],
+  manager: ["manager", "gérant", "gerant", "responsable"],
   senior: ["senior", "sr.", "principal"],
 };
 
@@ -108,33 +109,16 @@ function extractIndustryKeywords(campaignGoal: string, persona: PersonaOutput): 
   return [...new Set(keywords)].slice(0, 10);
 }
 
-function deriveCompanyJobTitle(campaignGoal: string, persona: PersonaOutput): string {
-  const goal = campaignGoal.trim().toLowerCase();
-
-  const leadTypePatterns = [
-    /(?:find|get|build|generate|create|search)\s+(.+?)\s+(?:leads?|contacts?|list)/i,
-    /(.+?)\s+(?:leads?|contacts?|prospects?)/i,
-  ];
-
-  for (const pattern of leadTypePatterns) {
-    const match = campaignGoal.match(pattern);
-    if (match && match[1]) {
-      const extracted = match[1].replace(/^(?:me|us|a|an|the)\s+/i, "").trim();
-      if (extracted.length > 2 && extracted.length < 60) return extracted;
-    }
-  }
-
-  if (persona.industryKeywords.length > 0) {
-    return persona.industryKeywords.slice(0, 3).join(" ") + " leads";
-  }
-
-  if (goal.length > 0 && goal.length <= 50) return campaignGoal.trim();
-
-  return "target leads";
+function buildExcludeJobTitles(activeExclusions: string[], languageCode: string): string[] {
+  const set = new Set<string>();
+  for (const w of ICP_EXCLUDE_KEYWORDS) set.add(w);
+  const localized = LOCALIZED_EXCLUDE_KEYWORDS[languageCode] || [];
+  for (const w of localized) set.add(w);
+  for (const w of activeExclusions) set.add(w);
+  return Array.from(set);
 }
 
 function buildCondensedPrompt(
-  companyJobTitle: string,
   keywords: string[],
   locations: string[],
   titles: string[],
@@ -146,12 +130,10 @@ function buildCondensedPrompt(
   const locPart = locations.slice(0, 4).join(", ");
   const titlePart = titles.slice(0, 6).join(", ");
 
-  let prompt = `build ${companyJobTitle} list: ${kwPart}`;
-  if (locPart) prompt += ` in ${locPart}`;
-  prompt += `. target: ${titlePart}`;
+  let prompt = `${kwPart} in ${locPart}. titles: ${titlePart}`;
 
   if (excludes.length > 0) {
-    const exPart = excludes.slice(0, 3).join(", ");
+    const exPart = excludes.slice(0, 4).join(", ");
     const withExclude = `${prompt}. exclude: ${exPart}`;
     if (withExclude.length <= MAX) {
       prompt = withExclude;
@@ -165,15 +147,6 @@ function buildCondensedPrompt(
   return prompt;
 }
 
-function mergeExcludes(activeExclusions: string[], languageCode: string): string[] {
-  const set = new Set<string>();
-  for (const w of ICP_EXCLUDE_KEYWORDS) set.add(w);
-  const localized = LOCALIZED_EXCLUDE_KEYWORDS[languageCode] || [];
-  for (const w of localized) set.add(w);
-  for (const w of activeExclusions) set.add(w);
-  return Array.from(set);
-}
-
 export function buildSearchPrompt(
   campaignGoal: string,
   persona: PersonaOutput,
@@ -181,21 +154,21 @@ export function buildSearchPrompt(
   exclusions: string[],
   leads?: Lead[]
 ): SearchPromptFields {
-  const personTitles = [...persona.tier1Titles, ...persona.tier2Titles].slice(0, 15);
+  const jobTitles = [...persona.tier1Titles, ...persona.tier2Titles].slice(0, 15);
   const companyKeywords = extractIndustryKeywords(campaignGoal, persona);
-  const personLocations = extractLocations(locale, leads);
-  const seniority = detectSeniority(personTitles);
-  const excludeTitles = mergeExcludes(exclusions, locale.languageCode);
-  const companyJobTitle = deriveCompanyJobTitle(campaignGoal, persona);
+  const locations = extractLocations(locale, leads);
+  const seniority = detectSeniority(jobTitles);
+  const excludeJobTitles = buildExcludeJobTitles(exclusions, locale.languageCode);
+  const excludeLocations: string[] = [];
 
-  const prompt = buildCondensedPrompt(companyJobTitle, companyKeywords, personLocations, personTitles, excludeTitles);
+  const prompt = buildCondensedPrompt(companyKeywords, locations, jobTitles, excludeJobTitles);
 
   return {
-    companyJobTitle,
-    personTitles,
-    personLocations,
+    jobTitles,
+    excludeJobTitles,
+    locations,
+    excludeLocations,
     companyKeywords,
-    excludeTitles,
     seniority,
     prompt,
   };
