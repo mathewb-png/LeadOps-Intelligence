@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
-import { Routes, Route } from "react-router-dom";
 import { ThemeMode } from "@/types";
 import Navbar from "@/components/Navbar";
-import Dashboard from "@/pages/Dashboard";
 import CampaignWorkspace from "@/pages/CampaignWorkspace";
 
 export default function App() {
@@ -23,10 +21,7 @@ export default function App() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors">
       <Navbar theme={theme} onToggleTheme={toggleTheme} />
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/workspace" element={<CampaignWorkspace />} />
-        </Routes>
+        <CampaignWorkspace />
       </main>
     </div>
   );
