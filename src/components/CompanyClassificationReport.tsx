@@ -9,11 +9,12 @@ import {
   ChevronDown,
   ArrowUpDown,
 } from "lucide-react";
-import { Lead } from "@/types";
+import { Lead, CampaignLocale } from "@/types";
 import { classifyCompany, CompanyClassification } from "@/lib/richardScoring";
 
 interface CompanyClassificationReportProps {
   leads: Lead[];
+  locale: CampaignLocale;
   onExport: () => void;
 }
 
@@ -52,6 +53,7 @@ type SortField = "company" | "employees" | "category" | "industry";
 
 export default function CompanyClassificationReport({
   leads,
+  locale,
   onExport,
 }: CompanyClassificationReportProps) {
   const [filterCategory, setFilterCategory] = useState<string>("all");
@@ -65,7 +67,7 @@ export default function CompanyClassificationReport({
       const key = lead.company.toLowerCase();
       if (seen.has(key) || !lead.company) continue;
       seen.add(key);
-      results.push(classifyCompany(lead));
+      results.push(classifyCompany(lead, locale.countryCode));
     }
     return results;
   }, [leads]);
@@ -137,7 +139,7 @@ export default function CompanyClassificationReport({
               Company Data Analysis & Classification
             </h2>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              {classifications.length} unique companies analyzed
+              {classifications.length} unique companies analyzed &middot; {locale.country} ({locale.language})
             </p>
           </div>
         </div>

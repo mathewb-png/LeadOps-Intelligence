@@ -8,13 +8,14 @@ import {
   Plus,
   Trash2,
   Variable,
-  Save,
+  Globe,
 } from "lucide-react";
-import { EmailTemplate, Lead } from "@/types";
+import { EmailTemplate, Lead, CampaignLocale } from "@/types";
 
 interface EmailTemplateEditorProps {
   leads: Lead[];
   campaignGoal: string;
+  locale: CampaignLocale;
   onSendOutreach?: (template: EmailTemplate) => void;
 }
 
@@ -28,14 +29,140 @@ const VARIABLES = [
   { token: "{{richardScore}}", desc: "Richard Score (0-10)" },
   { token: "{{tier}}", desc: "Lead tier" },
   { token: "{{campaignGoal}}", desc: "Campaign goal" },
+  { token: "{{country}}", desc: "Target country" },
+  { token: "{{language}}", desc: "Target language" },
+  { token: "{{region}}", desc: "Target region" },
 ];
 
-const DEFAULT_TEMPLATES: EmailTemplate[] = [
-  {
-    id: "default-1",
-    name: "Introduction",
-    subject: "Quick question about {{company}}'s strategy",
-    body: `Hi {{firstName}},
+function getDefaultTemplatesForLocale(lang: string): EmailTemplate[] {
+  const now = new Date().toISOString();
+
+  if (lang === "fr") {
+    return [
+      {
+        id: "default-fr-1",
+        name: "Introduction (FR)",
+        subject: "Question rapide sur la stratégie de {{company}}",
+        body: `Bonjour {{firstName}},
+
+J'ai découvert {{company}} et j'ai été impressionné par ce que votre équipe accomplit dans le secteur {{industry}}.
+
+Je vous contacte car nous aidons des entreprises comme {{company}} à résoudre un défi spécifique : {{campaignGoal}}.
+
+Étant donné votre rôle de {{jobTitle}}, j'ai pensé que cela pourrait vous intéresser. Seriez-vous disponible pour un échange de 15 minutes cette semaine ?
+
+Cordialement`,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "default-fr-2",
+        name: "Proposition de valeur (FR)",
+        subject: "Comment {{company}} peut économiser 40% sur ce point",
+        body: `Bonjour {{firstName}},
+
+J'ai remarqué que {{company}} opère dans le secteur {{industry}} — nous aidons des entreprises similaires à relever un défi courant.
+
+Plus précisément, nous nous concentrons sur : {{campaignGoal}}.
+
+Nos clients constatent généralement une amélioration de 30 à 40% dès le premier trimestre. J'aimerais vous montrer comment nous pourrions faire de même pour {{company}}.
+
+Mardi ou mercredi prochain conviendrait-il pour un bref appel ?
+
+Bien cordialement`,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ];
+  }
+
+  if (lang === "de") {
+    return [
+      {
+        id: "default-de-1",
+        name: "Einführung (DE)",
+        subject: "Kurze Frage zur Strategie von {{company}}",
+        body: `Hallo {{firstName}},
+
+ich bin auf {{company}} aufmerksam geworden und bin beeindruckt von dem, was Ihr Team im Bereich {{industry}} leistet.
+
+Ich melde mich, weil wir Unternehmen wie {{company}} bei einer speziellen Herausforderung helfen: {{campaignGoal}}.
+
+Angesichts Ihrer Rolle als {{jobTitle}} dachte ich, das könnte für Sie relevant sein. Hätten Sie diese Woche 15 Minuten Zeit für ein kurzes Gespräch?
+
+Mit freundlichen Grüßen`,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "default-de-2",
+        name: "Wertversprechen (DE)",
+        subject: "Wie {{company}} 40% einsparen kann",
+        body: `Hallo {{firstName}},
+
+mir ist aufgefallen, dass {{company}} im Bereich {{industry}} tätig ist — wir helfen ähnlichen Unternehmen bei einer häufigen Herausforderung.
+
+Konkret konzentrieren wir uns auf: {{campaignGoal}}.
+
+Unsere Kunden sehen typischerweise eine Verbesserung von 30-40% im ersten Quartal. Ich würde Ihnen gerne zeigen, wie wir dasselbe für {{company}} erreichen können.
+
+Passt es nächsten Dienstag oder Mittwoch für ein kurzes Telefonat?
+
+Beste Grüße`,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ];
+  }
+
+  if (lang === "es") {
+    return [
+      {
+        id: "default-es-1",
+        name: "Introducción (ES)",
+        subject: "Pregunta rápida sobre la estrategia de {{company}}",
+        body: `Hola {{firstName}},
+
+Descubrí {{company}} y me impresionó lo que su equipo está logrando en el sector {{industry}}.
+
+Me pongo en contacto porque ayudamos a empresas como {{company}} a resolver un desafío específico: {{campaignGoal}}.
+
+Dado su rol como {{jobTitle}}, pensé que esto podría ser relevante. ¿Estaría disponible para una conversación de 15 minutos esta semana?
+
+Saludos cordiales`,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ];
+  }
+
+  if (lang === "it") {
+    return [
+      {
+        id: "default-it-1",
+        name: "Introduzione (IT)",
+        subject: "Domanda rapida sulla strategia di {{company}}",
+        body: `Buongiorno {{firstName}},
+
+Ho scoperto {{company}} e sono rimasto colpito da ciò che il vostro team sta realizzando nel settore {{industry}}.
+
+Vi contatto perché aiutiamo aziende come {{company}} a risolvere una sfida specifica: {{campaignGoal}}.
+
+Dato il vostro ruolo come {{jobTitle}}, ho pensato che potrebbe essere di vostro interesse. Sareste disponibili per una breve conversazione di 15 minuti questa settimana?
+
+Cordiali saluti`,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ];
+  }
+
+  return [
+    {
+      id: "default-1",
+      name: "Introduction",
+      subject: "Quick question about {{company}}'s strategy",
+      body: `Hi {{firstName}},
 
 I came across {{company}} and was impressed by what your team is doing in the {{industry}} space.
 
@@ -44,14 +171,14 @@ I'm reaching out because we help companies like {{company}} solve a specific cha
 Given your role as {{jobTitle}}, I thought this might be relevant. Would you be open to a quick 15-minute chat this week?
 
 Best regards`,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "default-2",
-    name: "Value Proposition",
-    subject: "How {{company}} can save 40% on this",
-    body: `Hi {{firstName}},
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: "default-2",
+      name: "Value Proposition",
+      subject: "How {{company}} can save 40% on this",
+      body: `Hi {{firstName}},
 
 I noticed {{company}} is in the {{industry}} sector — we've been helping similar companies tackle a common pain point.
 
@@ -62,12 +189,13 @@ Our clients typically see a 30-40% improvement within the first quarter. I'd lov
 Would next Tuesday or Wednesday work for a brief call?
 
 Cheers`,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
+}
 
-function interpolate(text: string, lead: Lead, campaignGoal: string): string {
+function interpolate(text: string, lead: Lead, campaignGoal: string, locale: CampaignLocale): string {
   const [firstName, ...rest] = (lead.name || "").split(" ");
   return text
     .replace(/\{\{firstName\}\}/g, firstName || "there")
@@ -78,17 +206,21 @@ function interpolate(text: string, lead: Lead, campaignGoal: string): string {
     .replace(/\{\{industry\}\}/g, lead.industry || "your industry")
     .replace(/\{\{richardScore\}\}/g, String(lead.richardScore))
     .replace(/\{\{tier\}\}/g, lead.tier || "")
-    .replace(/\{\{campaignGoal\}\}/g, campaignGoal || "");
+    .replace(/\{\{campaignGoal\}\}/g, campaignGoal || "")
+    .replace(/\{\{country\}\}/g, locale.country || "")
+    .replace(/\{\{language\}\}/g, locale.language || "")
+    .replace(/\{\{region\}\}/g, locale.region || "");
 }
 
 export default function EmailTemplateEditor({
   leads,
   campaignGoal,
+  locale,
   onSendOutreach,
 }: EmailTemplateEditorProps) {
   const [templates, setTemplates] = useState<EmailTemplate[]>(() => {
     const stored = localStorage.getItem("leadops-email-templates");
-    return stored ? JSON.parse(stored) : DEFAULT_TEMPLATES;
+    return stored ? JSON.parse(stored) : getDefaultTemplatesForLocale(locale.languageCode);
   });
   const [activeId, setActiveId] = useState(templates[0]?.id || "");
   const [mode, setMode] = useState<"edit" | "preview">("edit");
@@ -99,13 +231,13 @@ export default function EmailTemplateEditor({
   const previewLead = leads[previewLeadIndex] || leads[0];
 
   const previewSubject = useMemo(
-    () => (active && previewLead ? interpolate(active.subject, previewLead, campaignGoal) : active?.subject || ""),
-    [active, previewLead, campaignGoal]
+    () => (active && previewLead ? interpolate(active.subject, previewLead, campaignGoal, locale) : active?.subject || ""),
+    [active, previewLead, campaignGoal, locale]
   );
 
   const previewBody = useMemo(
-    () => (active && previewLead ? interpolate(active.body, previewLead, campaignGoal) : active?.body || ""),
-    [active, previewLead, campaignGoal]
+    () => (active && previewLead ? interpolate(active.body, previewLead, campaignGoal, locale) : active?.body || ""),
+    [active, previewLead, campaignGoal, locale]
   );
 
   const saveTemplates = (updated: EmailTemplate[]) => {
@@ -132,6 +264,17 @@ export default function EmailTemplateEditor({
     const updated = [...templates, newTemplate];
     saveTemplates(updated);
     setActiveId(newTemplate.id);
+  };
+
+  const loadLocaleTemplates = () => {
+    const localeDefaults = getDefaultTemplatesForLocale(locale.languageCode);
+    const existing = new Set(templates.map((t) => t.id));
+    const newOnes = localeDefaults.filter((t) => !existing.has(t.id));
+    if (newOnes.length > 0) {
+      const updated = [...templates, ...newOnes];
+      saveTemplates(updated);
+      setActiveId(newOnes[0].id);
+    }
   };
 
   const deleteTemplate = (id: string) => {
@@ -165,11 +308,19 @@ export default function EmailTemplateEditor({
               Email Template
             </h2>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Write your outreach email with dynamic variables
+              Write outreach in {locale.language} for {locale.country}
+              {locale.region ? ` (${locale.region})` : ""}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={loadLocaleTemplates}
+            className="rounded-lg px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            title={`Load ${locale.language} templates`}
+          >
+            <Globe className="mr-1 inline h-3 w-3" /> {locale.language} Templates
+          </button>
           <button
             onClick={() => setMode("edit")}
             className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
@@ -312,7 +463,7 @@ export default function EmailTemplateEditor({
                   </p>
                   {previewLead && (
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                      To: {previewLead.email}
+                      To: {previewLead.email} &middot; Language: {locale.language} &middot; Country: {locale.country}
                     </p>
                   )}
                 </div>

@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { Lead } from "@/types";
+import { Lead, CampaignLocale } from "@/types";
 import {
   tierLabel,
   getScoreReason,
@@ -10,6 +10,7 @@ import {
   ICP_EXCLUDE_KEYWORDS,
   MANAGEMENT_LEVELS,
   SCORE_ACTION_MAP,
+  LOCALIZED_EXCLUDE_KEYWORDS,
 } from "./richardScoring";
 
 export function exportStrategicSheet(leads: Lead[], campaignGoal: string) {
@@ -57,7 +58,7 @@ export function exportStrategicSheet(leads: Lead[], campaignGoal: string) {
 
 // ─── ICP Targeting Framework Export ─────────────────────────────────────────
 
-export function exportICPFramework(leads: Lead[], campaignGoal: string) {
+export function exportICPFramework(leads: Lead[], campaignGoal: string, locale?: CampaignLocale) {
   const wb = XLSX.utils.book_new();
   const ts = new Date().toISOString().slice(0, 10);
 
@@ -129,10 +130,14 @@ export function exportICPFramework(leads: Lead[], campaignGoal: string) {
   ws5["!cols"] = [{ wch: 36 }];
   XLSX.utils.book_append_sheet(wb, ws5, "Target Industries");
 
-  // Sheet 6: Exclude Keywords
-  const exRows = ICP_EXCLUDE_KEYWORDS.map((kw) => ({ "Exclude Keyword": kw }));
-  const ws6 = XLSX.utils.json_to_sheet(exRows);
-  ws6["!cols"] = [{ wch: 30 }];
+  // Sheet 6: Exclude Keywords (English + Localized)
+  const localizedKw = locale ? (LOCALIZED_EXCLUDE_KEYWORDS[locale.languageCode] || []) : [];
+  const allExcludes = [
+    ...ICP_EXCLUDE_KEYWORDS.map((kw) => ({ Keyword: kw, Language: "English" })),
+    ...localizedKw.map((kw) => ({ Keyword: kw, Language: locale?.language || "" })),
+  ];
+  const ws6 = XLSX.utils.json_to_sheet(allExcludes);
+  ws6["!cols"] = [{ wch: 30 }, { wch: 14 }];
   XLSX.utils.book_append_sheet(wb, ws6, "Exclude Keywords");
 
   // Sheet 7: Management Levels
@@ -149,11 +154,15 @@ export function exportICPFramework(leads: Lead[], campaignGoal: string) {
   // Sheet 8: Campaign Summary
   const metaRows = [
     { Field: "Campaign Goal", Value: campaignGoal || "N/A" },
+    { Field: "Target Country", Value: locale?.country || "N/A" },
+    { Field: "Target Language", Value: locale?.language || "N/A" },
+    { Field: "Target Region", Value: locale?.region || "All" },
     { Field: "Total Leads Analyzed", Value: String(leads.length) },
     { Field: "Unique Titles", Value: String(new Set(leads.map((l) => l.jobTitle)).size) },
     { Field: "Score 10 Count", Value: String(leads.filter((l) => l.richardScore === 10).length) },
     { Field: "Score 8-9 Count", Value: String(leads.filter((l) => l.richardScore >= 8 && l.richardScore < 10).length) },
     { Field: "Score 0 Count", Value: String(leads.filter((l) => l.richardScore === 0).length) },
+    { Field: "Localized Exclude Keywords", Value: String(localizedKw.length) },
     { Field: "Exported At", Value: new Date().toISOString() },
   ];
   const ws8 = XLSX.utils.json_to_sheet(metaRows);
@@ -165,7 +174,7 @@ export function exportICPFramework(leads: Lead[], campaignGoal: string) {
 
 // ─── Company Classification Export ──────────────────────────────────────────
 
-export function exportCompanyClassification(leads: Lead[]) {
+export function exportCompanyClassification(leads: Lead[], locale?: CampaignLocale) {
   const wb = XLSX.utils.book_new();
   const ts = new Date().toISOString().slice(0, 10);
 
@@ -177,7 +186,7 @@ export function exportCompanyClassification(leads: Lead[]) {
     if (seenCompanies.has(key) || !lead.company) continue;
     seenCompanies.add(key);
 
-    const c = classifyCompany(lead);
+    const c = classifyCompany(lead, locale?.countryCode);
     rows.push({
       "Company Name": c.companyName,
       "# Employees": c.employees,
@@ -185,6 +194,7 @@ export function exportCompanyClassification(leads: Lead[]) {
       Website: c.website,
       "Company LinkedIn URL": c.linkedinUrl,
       "Company Address": c.address,
+      Country: locale?.country || "N/A",
       Category: c.category,
       Reasoning: c.reasoning,
     });
@@ -211,6 +221,8 @@ export function exportCompanyClassification(leads: Lead[]) {
 
   const summaryRows = [
     { Field: "Total Companies", Value: String(rows.length) },
+    { Field: "Target Country", Value: locale?.country || "N/A" },
+    { Field: "Target Language", Value: locale?.language || "N/A" },
     ...Object.entries(categoryCounts).map(([cat, count]) => ({
       Field: cat,
       Value: String(count),

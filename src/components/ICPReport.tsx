@@ -11,13 +11,14 @@ import {
   Shield,
   Users,
 } from "lucide-react";
-import { Lead } from "@/types";
+import { Lead, CampaignLocale } from "@/types";
 import {
   SCORING_RULES,
   ICP_INDUSTRIES,
   ICP_INCLUDE_TITLES,
   ICP_EXCLUDE_KEYWORDS,
   MANAGEMENT_LEVELS,
+  LOCALIZED_EXCLUDE_KEYWORDS,
   SCORE_ACTION_MAP,
   getScoreReason,
   ScoringRule,
@@ -26,12 +27,14 @@ import {
 interface ICPReportProps {
   leads: Lead[];
   campaignGoal: string;
+  locale: CampaignLocale;
   onExport: () => void;
 }
 
 type Section = "scoring" | "include" | "exclude" | "mgmt" | "legend" | "applied";
 
-export default function ICPReport({ leads, campaignGoal, onExport }: ICPReportProps) {
+export default function ICPReport({ leads, campaignGoal, locale, onExport }: ICPReportProps) {
+  const localizedExcludes = LOCALIZED_EXCLUDE_KEYWORDS[locale.languageCode] || [];
   const [expanded, setExpanded] = useState<Set<Section>>(new Set(["applied", "legend"]));
 
   const toggle = (section: Section) => {
@@ -96,7 +99,8 @@ export default function ICPReport({ leads, campaignGoal, onExport }: ICPReportPr
               ICP Targeting Framework
             </h2>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              {campaignGoal || "Full scoring rules, include/exclude keywords, and management level matrix"}
+              {locale.country} &middot; {locale.language}
+              {campaignGoal ? ` — ${campaignGoal}` : ""}
             </p>
           </div>
         </div>
@@ -114,7 +118,7 @@ export default function ICPReport({ leads, campaignGoal, onExport }: ICPReportPr
             <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Include Titles</p>
           </div>
           <div>
-            <p className="text-2xl font-bold text-red-500">{ICP_EXCLUDE_KEYWORDS.length}</p>
+            <p className="text-2xl font-bold text-red-500">{ICP_EXCLUDE_KEYWORDS.length + localizedExcludes.length}</p>
             <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Exclude Keywords</p>
           </div>
           <div>
@@ -282,20 +286,40 @@ export default function ICPReport({ leads, campaignGoal, onExport }: ICPReportPr
         <CollapsibleSection
           id="exclude"
           title="Exclude Keywords"
-          subtitle={`${ICP_EXCLUDE_KEYWORDS.length} keywords that flag irrelevant contacts`}
+          subtitle={`${ICP_EXCLUDE_KEYWORDS.length} English + ${localizedExcludes.length} ${locale.language} keywords`}
           icon={<XCircle className="h-4 w-4 text-red-500" />}
           expanded={expanded.has("exclude")}
           onToggle={() => toggle("exclude")}
         >
-          <div className="flex flex-wrap gap-1.5">
-            {ICP_EXCLUDE_KEYWORDS.map((kw) => (
-              <span
-                key={kw}
-                className="rounded-md bg-red-50 dark:bg-red-950 px-2 py-0.5 text-[10px] font-medium text-red-700 dark:text-red-300"
-              >
-                {kw}
-              </span>
-            ))}
+          <div className="space-y-3">
+            <div>
+              <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">English</h4>
+              <div className="flex flex-wrap gap-1.5">
+                {ICP_EXCLUDE_KEYWORDS.map((kw) => (
+                  <span
+                    key={kw}
+                    className="rounded-md bg-red-50 dark:bg-red-950 px-2 py-0.5 text-[10px] font-medium text-red-700 dark:text-red-300"
+                  >
+                    {kw}
+                  </span>
+                ))}
+              </div>
+            </div>
+            {localizedExcludes.length > 0 && (
+              <div>
+                <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">{locale.language}</h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {localizedExcludes.map((kw) => (
+                    <span
+                      key={kw}
+                      className="rounded-md bg-orange-50 dark:bg-orange-950 px-2 py-0.5 text-[10px] font-medium text-orange-700 dark:text-orange-300"
+                    >
+                      {kw}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </CollapsibleSection>
 

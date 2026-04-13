@@ -183,9 +183,118 @@ export const SCORE_ACTION_MAP: { range: string; meaning: string; action: string 
   { range: "0", meaning: "Irrelevant", action: "Do not contact" },
 ];
 
+// ─── Localized Exclude Keywords ─────────────────────────────────────────────
+
+export const LOCALIZED_EXCLUDE_KEYWORDS: Record<string, string[]> = {
+  fr: [
+    "ventes", "vente", "commercial", "commerciale", "chargé de clientèle",
+    "gestionnaire de comptes", "comptable", "comptabilité",
+    "ressources humaines", "responsable rh", "drh",
+    "recrutement", "recruteur", "recruteuse",
+    "juridique", "conseiller juridique", "avocat",
+    "finance", "financier", "trésorier", "paie",
+    "approvisionnement", "acheteur", "acheteuse",
+    "assistant", "assistante", "coordinateur", "coordinatrice",
+    "stagiaire", "adjoint", "adjointe", "spécialiste",
+    "magasin", "responsable magasin", "boutique", "responsable boutique",
+    "succursale", "responsable succursale", "détail",
+    "hôtellerie", "événement", "événements", "événementiel",
+    "parrainage", "formation", "apprentissage", "académie",
+    "gestionnaire", "service client", "support client",
+    "accueil", "secrétaire", "administration",
+  ],
+  de: [
+    "verkauf", "vertrieb", "vertriebsleiter", "kundenbetreuer",
+    "buchhalter", "buchhaltung", "buchführung",
+    "personalwesen", "personalabteilung", "hr-leiter",
+    "rekrutierung", "recruiter", "talentakquise",
+    "rechtsabteilung", "rechtsanwalt", "jurist",
+    "finanzen", "finanzbuchhalter", "schatzmeister", "lohnbuchhaltung",
+    "beschaffung", "einkauf", "einkäufer",
+    "assistent", "assistentin", "koordinator", "koordinatorin",
+    "praktikant", "praktikantin", "stellvertreter", "spezialist",
+    "filiale", "filialleiter", "einzelhandel",
+    "gastgewerbe", "veranstaltung", "veranstaltungen",
+    "sponsoring", "ausbildung", "schulung", "akademie",
+    "sachbearbeiter", "kundendienst", "empfang", "sekretariat",
+  ],
+  es: [
+    "ventas", "vendedor", "ejecutivo de cuentas", "gerente de cuentas",
+    "contador", "contabilidad", "contable",
+    "recursos humanos", "responsable rrhh", "director rrhh",
+    "reclutamiento", "reclutador", "reclutadora",
+    "legal", "abogado", "asesor jurídico",
+    "finanzas", "financiero", "tesorero", "nómina",
+    "compras", "adquisiciones", "comprador", "compradora",
+    "asistente", "coordinador", "coordinadora",
+    "pasante", "becario", "adjunto", "especialista",
+    "tienda", "gerente de tienda", "boutique",
+    "sucursal", "gerente de sucursal", "retail",
+    "hostelería", "evento", "eventos",
+    "patrocinio", "formación", "capacitación", "academia",
+    "servicio al cliente", "soporte al cliente", "recepción",
+  ],
+  it: [
+    "vendite", "venditore", "responsabile clienti", "account manager",
+    "contabile", "contabilità",
+    "risorse umane", "responsabile hr", "direttore hr",
+    "selezione del personale", "recruiter",
+    "legale", "avvocato", "consulente legale",
+    "finanza", "finanziario", "tesoriere", "libro paga",
+    "approvvigionamento", "acquisti", "acquirente",
+    "assistente", "coordinatore", "coordinatrice",
+    "stagista", "tirocinante", "vice", "specialista",
+    "negozio", "responsabile negozio", "boutique",
+    "filiale", "responsabile filiale", "dettaglio",
+    "ospitalità", "evento", "eventi",
+    "sponsorizzazione", "formazione", "accademia",
+    "servizio clienti", "supporto clienti", "reception",
+  ],
+  nl: [
+    "verkoop", "verkoopmedewerker", "accountmanager",
+    "boekhouder", "boekhouding",
+    "personeelszaken", "hr-manager", "hoofd hr",
+    "werving", "recruiter",
+    "juridisch", "advocaat",
+    "financiën", "financieel", "penningmeester", "salarisadministratie",
+    "inkoop", "inkoper",
+    "assistent", "coördinator",
+    "stagiair", "specialist",
+    "winkel", "winkelmanager", "filiaal", "filiaalmanager",
+    "horeca", "evenement", "evenementen",
+    "sponsoring", "opleiding", "training", "academie",
+    "klantenservice", "receptie",
+  ],
+  pt: [
+    "vendas", "vendedor", "executivo de contas", "gerente de contas",
+    "contador", "contabilidade",
+    "recursos humanos", "responsável rh", "diretor rh",
+    "recrutamento", "recrutador",
+    "jurídico", "advogado", "assessor jurídico",
+    "finanças", "financeiro", "tesoureiro", "folha de pagamento",
+    "compras", "aquisições", "comprador",
+    "assistente", "coordenador", "coordenadora",
+    "estagiário", "estagiária", "especialista",
+    "loja", "gerente de loja",
+    "filial", "gerente de filial", "varejo",
+    "hospitalidade", "evento", "eventos",
+    "patrocínio", "treinamento", "academia",
+    "atendimento ao cliente", "suporte ao cliente", "recepção",
+  ],
+};
+
+export function getExcludeKeywordsForLocale(languageCode: string): string[] {
+  const base = [...ICP_EXCLUDE_KEYWORDS];
+  const localized = LOCALIZED_EXCLUDE_KEYWORDS[languageCode];
+  if (localized) {
+    return [...base, ...localized];
+  }
+  return base;
+}
+
 // ─── Scoring Engine ─────────────────────────────────────────────────────────
 
-export function computeRichardScore(jobTitle: string): number {
+export function computeRichardScore(jobTitle: string, languageCode?: string): number {
   const t = jobTitle.toLowerCase().trim();
 
   for (const rule of SCORING_RULES) {
@@ -205,7 +314,11 @@ export function computeRichardScore(jobTitle: string): number {
     return 3;
   }
 
-  for (const kw of ICP_EXCLUDE_KEYWORDS) {
+  const excludes = languageCode
+    ? getExcludeKeywordsForLocale(languageCode)
+    : ICP_EXCLUDE_KEYWORDS;
+
+  for (const kw of excludes) {
     if (t.includes(kw)) return 0;
   }
 
@@ -329,31 +442,99 @@ export interface CompanyClassification {
   website: string;
   linkedinUrl: string;
   address: string;
+  country: string;
   category: "Likely Residential" | "Mixed-Use" | "Commercial" | "Industrial" | "Unknown";
   reasoning: string;
 }
 
-const COMMERCIAL_KEYWORDS = [
-  "avenue", "boulevard", "business park", "tech park", "industrial",
-  "office park", "tower", "plaza", "center", "centre", "floor",
-  "suite", "building", "campus",
-];
+const COMMERCIAL_KEYWORDS_BY_COUNTRY: Record<string, string[]> = {
+  _default: [
+    "avenue", "boulevard", "business park", "tech park", "industrial",
+    "office park", "tower", "plaza", "center", "centre", "floor",
+    "suite", "building", "campus",
+  ],
+  CH: [
+    "grand-rue", "grand'rue", "rue centrale", "avenue", "place",
+    "zone industrielle", "parc technologique", "centre", "bâtiment",
+    "etage", "biopôle", "technopark", "world trade center",
+  ],
+  FR: [
+    "avenue", "boulevard", "zone industrielle", "parc d'activités",
+    "centre d'affaires", "tour", "immeuble", "étage", "bâtiment",
+    "place", "zone commerciale", "technopole",
+  ],
+  DE: [
+    "straße", "strasse", "allee", "gewerbepark", "industriegebiet",
+    "büropark", "turm", "gebäude", "etage", "zentrum", "platz",
+    "gewerbegebiet", "technologiepark",
+  ],
+  ES: [
+    "avenida", "paseo", "polígono industrial", "parque empresarial",
+    "centro de negocios", "torre", "edificio", "planta", "plaza",
+  ],
+  IT: [
+    "viale", "corso", "zona industriale", "centro direzionale",
+    "palazzo", "piano", "piazza", "parco tecnologico",
+  ],
+  NL: [
+    "laan", "straat", "bedrijvenpark", "industrieterrein",
+    "kantoorgebouw", "verdieping", "centrum", "plein",
+  ],
+};
 
-const RESIDENTIAL_KEYWORDS = [
-  "chemin", "route", "ch.", "rue de la", "village", "hamlet",
-  "cottage", "villa", "maison", "residence", "impasse",
-];
+const RESIDENTIAL_KEYWORDS_BY_COUNTRY: Record<string, string[]> = {
+  _default: [
+    "village", "hamlet", "cottage", "villa", "maison", "residence", "impasse",
+    "lane", "drive", "court", "close", "way", "crescent", "terrace",
+  ],
+  CH: [
+    "chemin", "ch.", "route de", "rue de la", "impasse", "sentier",
+    "village", "hameau", "résidence", "villa", "le moulin",
+    "gryon", "blonay", "puidoux", "lutry", "savigny", "romanel",
+    "morges", "nyon", "gland", "aigle", "ollon", "vevey", "pully",
+    "apples", "cronay", "ferreyres", "burtigny",
+  ],
+  FR: [
+    "chemin", "rue de", "impasse", "allée", "sentier", "passage",
+    "résidence", "villa", "hameau", "lotissement", "lieu-dit",
+  ],
+  DE: [
+    "weg", "gasse", "pfad", "siedlung", "wohngebiet",
+    "dorfstraße", "dorf", "wohnsiedlung",
+  ],
+  ES: [
+    "calle", "camino", "callejón", "sendero", "urbanización",
+    "residencial", "villa", "aldea",
+  ],
+  IT: [
+    "via", "vicolo", "sentiero", "residenza", "villaggio",
+    "frazione", "contrada",
+  ],
+  NL: [
+    "weg", "steeg", "pad", "wijk", "woonwijk", "dorp",
+  ],
+};
 
-export function classifyCompany(lead: Lead): CompanyClassification {
+function getKeywordsForCountry(byCountry: Record<string, string[]>, countryCode: string): string[] {
+  const specific = byCountry[countryCode] || [];
+  const fallback = byCountry._default || [];
+  return [...new Set([...specific, ...fallback])];
+}
+
+export function classifyCompany(lead: Lead, countryCode?: string): CompanyClassification {
   const addr = (lead.location || "").toLowerCase();
   const emp = parseInt(lead.employeeCount) || 0;
   const industry = (lead.industry || "").toLowerCase();
+  const cc = countryCode || "US";
+
+  const commercialKw = getKeywordsForCountry(COMMERCIAL_KEYWORDS_BY_COUNTRY, cc);
+  const residentialKw = getKeywordsForCountry(RESIDENTIAL_KEYWORDS_BY_COUNTRY, cc);
 
   let category: CompanyClassification["category"] = "Unknown";
   let reasoning = "";
 
-  const hasCommercialAddr = COMMERCIAL_KEYWORDS.some((kw) => addr.includes(kw));
-  const hasResidentialAddr = RESIDENTIAL_KEYWORDS.some((kw) => addr.includes(kw));
+  const hasCommercialAddr = commercialKw.some((kw) => addr.includes(kw));
+  const hasResidentialAddr = residentialKw.some((kw) => addr.includes(kw));
 
   const isTinyCompany = emp > 0 && emp <= 10;
   const isMidSize = emp > 10 && emp <= 50;
@@ -408,6 +589,7 @@ export function classifyCompany(lead: Lead): CompanyClassification {
     website: lead.email ? lead.email.split("@")[1] || "" : "",
     linkedinUrl: lead.linkedinUrl || "",
     address: lead.location,
+    country: cc,
     category,
     reasoning,
   };

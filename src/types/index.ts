@@ -31,6 +31,15 @@ export interface CampaignGoal {
   createdAt: string;
 }
 
+export interface CampaignLocale {
+  country: string;
+  countryCode: string;
+  language: string;
+  languageCode: string;
+  region?: string;
+  timezone?: string;
+}
+
 export interface PersonaOutput {
   tier1Titles: string[];
   tier2Titles: string[];

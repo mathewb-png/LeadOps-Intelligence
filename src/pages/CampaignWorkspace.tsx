@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Lead, PersonaOutput, ExclusionWord, PipelineStatus, EmailTemplate } from "@/types";
+import { Lead, PersonaOutput, ExclusionWord, PipelineStatus, EmailTemplate, CampaignLocale } from "@/types";
 import IntentIntake from "@/components/IntentIntake";
 import PersonaArchitect from "@/components/PersonaArchitect";
 import LeadDataGrid from "@/components/LeadDataGrid";
@@ -19,6 +19,7 @@ import { addBatchToCampaign } from "@/services/instantlyService";
 import { sendBatchSummary } from "@/services/slackService";
 import { scoreLeadsWithGroq } from "@/services/groqService";
 import { exportICPFramework, exportCompanyClassification } from "@/lib/exportXlsx";
+import { getDefaultLocale, detectLocaleFromLeads } from "@/lib/localeData";
 import {
   addExclusion,
   removeExclusion,
@@ -44,6 +45,7 @@ type ResultsTab = "data" | "icp" | "classification" | "email";
 
 export default function CampaignWorkspace() {
   const [campaignGoal, setCampaignGoal] = useState("");
+  const [locale, setLocale] = useState<CampaignLocale>(getDefaultLocale);
   const [persona, setPersona] = useState<PersonaOutput | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [exclusions, setExclusions] = useState<ExclusionWord[]>(() => {
@@ -60,7 +62,21 @@ export default function CampaignWorkspace() {
     setLeads((prev) => {
       const existingEmails = new Set(prev.map((l) => l.email));
       const deduped = imported.filter((l) => !existingEmails.has(l.email));
-      return [...prev, ...deduped];
+      const merged = [...prev, ...deduped];
+
+      const detected = detectLocaleFromLeads(merged);
+      if (detected.countryCode) {
+        setLocale((loc) => ({
+          ...loc,
+          ...(detected.country && { country: detected.country }),
+          ...(detected.countryCode && { countryCode: detected.countryCode }),
+          ...(detected.language && { language: detected.language }),
+          ...(detected.languageCode && { languageCode: detected.languageCode }),
+          ...(detected.timezone && { timezone: detected.timezone }),
+        }));
+      }
+
+      return merged;
     });
     setPipeline(INITIAL_PIPELINE);
     setShowUploader(false);
@@ -88,13 +104,14 @@ export default function CampaignWorkspace() {
         personaTitles: allTitles,
         industryKeywords: persona.industryKeywords,
         excludedWords: activeExclusions,
+        location: locale.country,
       });
       setLeads(fetched);
       setPipeline(INITIAL_PIPELINE);
     } finally {
       setFetchingLeads(false);
     }
-  }, [persona, exclusions]);
+  }, [persona, exclusions, locale]);
 
   const handleEnrich = useCallback(async () => {
     setPipeline((p) => ({ ...p, enrichment: { status: "running", enrichedCount: 0 } }));
@@ -228,7 +245,7 @@ export default function CampaignWorkspace() {
             Campaign Workspace
           </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Define your campaign, import leads, score, classify companies, and launch outreach.
+            Define your campaign, select target country &amp; language, import leads, and launch outreach.
           </p>
         </div>
         <button
@@ -245,6 +262,8 @@ export default function CampaignWorkspace() {
       <IntentIntake
         value={campaignGoal}
         onChange={setCampaignGoal}
+        locale={locale}
+        onLocaleChange={setLocale}
         onSubmit={handleGeneratePersona}
         loading={generatingPersona}
       />
@@ -303,14 +322,16 @@ export default function CampaignWorkspace() {
             <ICPReport
               leads={leads}
               campaignGoal={campaignGoal}
-              onExport={() => exportICPFramework(leads, campaignGoal)}
+              locale={locale}
+              onExport={() => exportICPFramework(leads, campaignGoal, locale)}
             />
           )}
 
           {resultsTab === "classification" && (
             <CompanyClassificationReport
               leads={leads}
-              onExport={() => exportCompanyClassification(leads)}
+              locale={locale}
+              onExport={() => exportCompanyClassification(leads, locale)}
             />
           )}
 
@@ -318,6 +339,7 @@ export default function CampaignWorkspace() {
             <EmailTemplateEditor
               leads={leads}
               campaignGoal={campaignGoal}
+              locale={locale}
               onSendOutreach={handleSendOutreach}
             />
           )}
