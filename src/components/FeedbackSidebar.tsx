@@ -1,12 +1,14 @@
-import { useState } from "react";
 import {
   Filter,
   Plus,
   X,
-  TrendingUp,
   AlertTriangle,
   Zap,
   Trophy,
+  Sparkles,
+  ShieldCheck,
+  Upload,
+  Send,
 } from "lucide-react";
 import { Lead, BatchValueBreakdown, RefinementSuggestion, ExclusionWord } from "@/types";
 import { computeBatchValue, extractRefinementSuggestions } from "@/lib/richardScoring";
@@ -30,12 +32,67 @@ export default function FeedbackSidebar({
   return (
     <div className="space-y-5">
       <BatchValueCard batch={batch} totalLeads={leads.length} />
+      <EnrichmentStatsCard leads={leads} />
       <SuggestedExclusionsCard
         suggestions={suggestions}
         exclusions={exclusions}
         onAddExclusion={onAddExclusion}
       />
       <ActiveExclusionsCard exclusions={exclusions} onRemove={onRemoveExclusion} />
+    </div>
+  );
+}
+
+function EnrichmentStatsCard({ leads }: { leads: Lead[] }) {
+  const enriched = leads.filter((l) => l.enriched).length;
+  const verified = leads.filter((l) => l.emailStatus).length;
+  const validEmails = leads.filter((l) => l.emailStatus === "valid").length;
+  const crmSynced = leads.filter((l) => l.crmContactId).length;
+  const outreachQueued = leads.filter((l) => l.outreachStatus === "queued" || l.outreachStatus === "sent").length;
+  const withTech = leads.filter((l) => l.techStack && l.techStack.length > 0).length;
+
+  const stats = [
+    { icon: Sparkles, label: "Enriched", value: enriched, total: leads.length, color: "text-brand-600" },
+    { icon: ShieldCheck, label: "Verified", value: verified, total: leads.length, color: "text-emerald-600", sub: `${validEmails} valid` },
+    { icon: Upload, label: "CRM Synced", value: crmSynced, total: leads.length, color: "text-orange-600" },
+    { icon: Send, label: "In Outreach", value: outreachQueued, total: leads.length, color: "text-blue-600" },
+  ];
+
+  if (enriched === 0 && verified === 0 && crmSynced === 0) return null;
+
+  return (
+    <div className="card p-5">
+      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+        Pipeline Progress
+      </h3>
+      <div className="space-y-2.5">
+        {stats
+          .filter((s) => s.value > 0)
+          .map((s) => (
+            <div key={s.label} className="flex items-center gap-2.5">
+              <s.icon className={`h-4 w-4 ${s.color}`} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium text-gray-700 dark:text-gray-300">{s.label}</span>
+                  <span className="text-gray-500 dark:text-gray-400">
+                    {s.value}/{s.total} {s.sub ? `(${s.sub})` : ""}
+                  </span>
+                </div>
+                <div className="mt-1 h-1.5 w-full rounded-full bg-gray-100 dark:bg-gray-800">
+                  <div
+                    className="h-1.5 rounded-full bg-brand-500 transition-all"
+                    style={{ width: `${s.total > 0 ? (s.value / s.total) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        {withTech > 0 && (
+          <p className="text-[11px] text-gray-400 dark:text-gray-500 pt-1">
+            {withTech} leads with tech stack data
+          </p>
+        )}
+      </div>
     </div>
   );
 }

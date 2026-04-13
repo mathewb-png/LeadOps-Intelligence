@@ -1,6 +1,17 @@
 import { useState, useMemo } from "react";
-import { ArrowUpDown, Download, ChevronDown, ChevronUp, FileSpreadsheet } from "lucide-react";
-import { Lead } from "@/types";
+import {
+  ArrowUpDown,
+  ChevronDown,
+  ChevronUp,
+  FileSpreadsheet,
+  CheckCircle2,
+  XCircle,
+  HelpCircle,
+  AlertTriangle,
+  Sparkles,
+  Linkedin,
+} from "lucide-react";
+import { Lead, EmailValidationStatus } from "@/types";
 import RichardScoreBadge from "./RichardScoreBadge";
 import TierBadge from "./TierBadge";
 import { exportStrategicSheet } from "@/lib/exportXlsx";
@@ -12,6 +23,24 @@ interface LeadDataGridProps {
 
 type SortKey = "richardScore" | "name" | "company" | "jobTitle" | "tier";
 type SortDir = "asc" | "desc";
+
+function EmailStatusIcon({ status }: { status?: EmailValidationStatus }) {
+  if (!status) return <span className="text-gray-300 dark:text-gray-600">—</span>;
+  switch (status) {
+    case "valid":
+      return <span title="Valid"><CheckCircle2 className="h-4 w-4 text-emerald-500" /></span>;
+    case "invalid":
+      return <span title="Invalid"><XCircle className="h-4 w-4 text-red-500" /></span>;
+    case "catch-all":
+      return <span title="Catch-all"><AlertTriangle className="h-4 w-4 text-amber-500" /></span>;
+    case "spamtrap":
+    case "abuse":
+    case "do_not_mail":
+      return <span title={status}><XCircle className="h-4 w-4 text-red-600" /></span>;
+    default:
+      return <span title="Unknown"><HelpCircle className="h-4 w-4 text-gray-400" /></span>;
+  }
+}
 
 export default function LeadDataGrid({ leads, campaignGoal }: LeadDataGridProps) {
   const [sortKey, setSortKey] = useState<SortKey>("richardScore");
@@ -42,6 +71,9 @@ export default function LeadDataGrid({ leads, campaignGoal }: LeadDataGridProps)
     />
   );
 
+  const thClass =
+    "cursor-pointer whitespace-nowrap px-4 py-3 font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200";
+
   return (
     <div className="card overflow-hidden">
       <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 py-4">
@@ -66,37 +98,31 @@ export default function LeadDataGrid({ leads, campaignGoal }: LeadDataGridProps)
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-              <th
-                className="cursor-pointer whitespace-nowrap px-6 py-3 font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-                onClick={() => toggleSort("name")}
-              >
+              <th className={thClass} onClick={() => toggleSort("name")}>
                 Name <SortIcon field="name" />
               </th>
-              <th
-                className="cursor-pointer whitespace-nowrap px-6 py-3 font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-                onClick={() => toggleSort("company")}
-              >
+              <th className={thClass} onClick={() => toggleSort("company")}>
                 Company <SortIcon field="company" />
               </th>
-              <th
-                className="cursor-pointer whitespace-nowrap px-6 py-3 font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-                onClick={() => toggleSort("jobTitle")}
-              >
+              <th className={thClass} onClick={() => toggleSort("jobTitle")}>
                 Job Title <SortIcon field="jobTitle" />
               </th>
               <th
-                className="cursor-pointer whitespace-nowrap px-6 py-3 text-center font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                className={`${thClass} text-center`}
                 onClick={() => toggleSort("richardScore")}
               >
-                Richard Score <SortIcon field="richardScore" />
+                Score <SortIcon field="richardScore" />
               </th>
-              <th
-                className="cursor-pointer whitespace-nowrap px-6 py-3 font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-                onClick={() => toggleSort("tier")}
-              >
+              <th className={thClass} onClick={() => toggleSort("tier")}>
                 Tier <SortIcon field="tier" />
               </th>
-              <th className="px-6 py-3 font-medium text-gray-500 dark:text-gray-400"></th>
+              <th className="whitespace-nowrap px-4 py-3 text-center font-medium text-gray-500 dark:text-gray-400">
+                Email
+              </th>
+              <th className="whitespace-nowrap px-4 py-3 font-medium text-gray-500 dark:text-gray-400">
+                Tech Stack
+              </th>
+              <th className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -106,24 +132,55 @@ export default function LeadDataGrid({ leads, campaignGoal }: LeadDataGridProps)
                   key={lead.id}
                   className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30"
                 >
-                  <td className="whitespace-nowrap px-6 py-3.5 font-medium text-gray-900 dark:text-gray-100">
-                    {lead.name}
+                  <td className="whitespace-nowrap px-4 py-3 font-medium text-gray-900 dark:text-gray-100">
+                    <div className="flex items-center gap-1.5">
+                      {lead.name}
+                      {lead.enriched && (
+                        <span title="Enriched"><Sparkles className="h-3.5 w-3.5 text-brand-500" /></span>
+                      )}
+                    </div>
                   </td>
-                  <td className="whitespace-nowrap px-6 py-3.5 text-gray-600 dark:text-gray-300">
+                  <td className="whitespace-nowrap px-4 py-3 text-gray-600 dark:text-gray-300">
                     {lead.company}
                   </td>
-                  <td className="px-6 py-3.5 text-gray-600 dark:text-gray-300">
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
                     {lead.jobTitle}
                   </td>
-                  <td className="px-6 py-3.5 text-center">
+                  <td className="px-4 py-3 text-center">
                     <RichardScoreBadge score={lead.richardScore} />
                   </td>
-                  <td className="px-6 py-3.5">
+                  <td className="px-4 py-3">
                     <TierBadge tier={lead.tier} />
                   </td>
-                  <td className="px-6 py-3.5">
+                  <td className="px-4 py-3 text-center">
+                    <EmailStatusIcon status={lead.emailStatus} />
+                  </td>
+                  <td className="px-4 py-3">
+                    {lead.techStack && lead.techStack.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {lead.techStack.slice(0, 3).map((tech) => (
+                          <span
+                            key={tech}
+                            className="rounded bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:text-gray-400"
+                          >
+                            {tech}
+                          </span>
+                        ))}
+                        {lead.techStack.length > 3 && (
+                          <span className="text-[10px] text-gray-400">
+                            +{lead.techStack.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-300 dark:text-gray-600">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
                     <button
-                      onClick={() => setExpandedId(expandedId === lead.id ? null : lead.id)}
+                      onClick={() =>
+                        setExpandedId(expandedId === lead.id ? null : lead.id)
+                      }
                       className="rounded-md p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-200"
                     >
                       {expandedId === lead.id ? (
@@ -135,16 +192,21 @@ export default function LeadDataGrid({ leads, campaignGoal }: LeadDataGridProps)
                   </td>
                 </tr>
                 {expandedId === lead.id && (
-                  <tr key={`${lead.id}-detail`} className="bg-gray-50/50 dark:bg-gray-800/20">
-                    <td colSpan={6} className="px-6 py-4">
-                      <div className="grid gap-3 sm:grid-cols-4 text-sm">
+                  <tr
+                    key={`${lead.id}-detail`}
+                    className="bg-gray-50/50 dark:bg-gray-800/20"
+                  >
+                    <td colSpan={8} className="px-6 py-4">
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 text-sm">
                         <div>
                           <span className="text-xs font-medium text-gray-400">Email</span>
                           <p className="text-gray-700 dark:text-gray-300">{lead.email}</p>
                         </div>
                         <div>
                           <span className="text-xs font-medium text-gray-400">Phone</span>
-                          <p className="text-gray-700 dark:text-gray-300">{lead.phone || "—"}</p>
+                          <p className="text-gray-700 dark:text-gray-300">
+                            {lead.phone || "—"}
+                          </p>
                         </div>
                         <div>
                           <span className="text-xs font-medium text-gray-400">Industry</span>
@@ -154,6 +216,50 @@ export default function LeadDataGrid({ leads, campaignGoal }: LeadDataGridProps)
                           <span className="text-xs font-medium text-gray-400">Location</span>
                           <p className="text-gray-700 dark:text-gray-300">{lead.location}</p>
                         </div>
+                        <div>
+                          <span className="text-xs font-medium text-gray-400">Revenue</span>
+                          <p className="text-gray-700 dark:text-gray-300">
+                            {lead.estimatedRevenue || "—"}
+                          </p>
+                        </div>
+                        {lead.linkedinUrl && (
+                          <div>
+                            <span className="text-xs font-medium text-gray-400">LinkedIn</span>
+                            <a
+                              href={lead.linkedinUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-brand-600 hover:text-brand-700 text-xs"
+                            >
+                              <Linkedin className="h-3 w-3" /> Profile
+                            </a>
+                          </div>
+                        )}
+                        {lead.fundingRaised != null && lead.fundingRaised > 0 && (
+                          <div>
+                            <span className="text-xs font-medium text-gray-400">Funding</span>
+                            <p className="text-gray-700 dark:text-gray-300">
+                              ${(lead.fundingRaised / 1_000_000).toFixed(1)}M
+                            </p>
+                          </div>
+                        )}
+                        {lead.techStack && lead.techStack.length > 0 && (
+                          <div className="sm:col-span-2">
+                            <span className="text-xs font-medium text-gray-400">
+                              Full Tech Stack
+                            </span>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {lead.techStack.map((tech) => (
+                                <span
+                                  key={tech}
+                                  className="rounded-md bg-brand-50 dark:bg-brand-950 px-2 py-0.5 text-xs font-medium text-brand-700 dark:text-brand-300"
+                                >
+                                  {tech}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>
