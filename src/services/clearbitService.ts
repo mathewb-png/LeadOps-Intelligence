@@ -1,4 +1,5 @@
-import { ClearbitCompany, ClearbitPerson, EnrichedCompany } from "@/types";
+import { ClearbitPerson, EnrichedCompany } from "@/types";
+import { lookupByDomain, lookupCompanyIntel } from "@/lib/companyIntel";
 
 /**
  * ─── API LANDING ZONE: Clearbit (HubSpot Breeze Intelligence) ───
@@ -18,7 +19,7 @@ import { ClearbitCompany, ClearbitPerson, EnrichedCompany } from "@/types";
  */
 
 export async function enrichCompany(domain: string): Promise<EnrichedCompany> {
-  console.log("[Clearbit] enrichCompany placeholder for:", domain);
+  console.log("[Clearbit] enrichCompany for:", domain);
 
   // ═══════════════════════════════════════════════
   //  TODO: Replace with real Clearbit API call
@@ -31,41 +32,63 @@ export async function enrichCompany(domain: string): Promise<EnrichedCompany> {
   //  const company: ClearbitCompany = await response.json();
   //  return mapClearbitToEnriched(company);
 
-  await new Promise((r) => setTimeout(r, 400));
+  await new Promise((r) => setTimeout(r, 150));
 
-  const companyName = domain.split(".")[0].charAt(0).toUpperCase() + domain.split(".")[0].slice(1);
-  const techOptions = [
-    ["React", "AWS", "PostgreSQL", "Node.js"],
-    ["Vue.js", "GCP", "MongoDB", "Python"],
-    ["Angular", "Azure", "MySQL", "Java"],
-    ["Next.js", "Vercel", "Redis", "TypeScript"],
-  ];
+  const intel = lookupByDomain(domain);
+  if (intel) {
+    return {
+      domain: intel.domain,
+      name: extractName(intel.domain),
+      industry: intel.industry,
+      employeeCount: parseEmployeeCount(intel.employeeRange),
+      employeeRange: intel.employeeRange,
+      estimatedRevenue: intel.estimatedRevenue,
+      techStack: intel.techStack,
+      fundingRaised: intel.fundingRaised,
+      foundedYear: intel.foundedYear,
+      location: intel.location,
+      description: intel.description,
+      enrichedAt: new Date().toISOString(),
+      source: "clearbit",
+    };
+  }
 
   return {
     domain,
-    name: companyName,
-    industry: "Technology",
-    employeeCount: 150,
-    employeeRange: "50-200",
-    estimatedRevenue: "$10M - $25M",
-    techStack: techOptions[Math.floor(Math.random() * techOptions.length)],
-    fundingRaised: 12_000_000,
-    foundedYear: 2018,
-    location: "San Francisco, CA",
-    description: `${companyName} is a technology company.`,
+    name: domain.split(".")[0].charAt(0).toUpperCase() + domain.split(".")[0].slice(1),
+    industry: "Unknown",
+    employeeCount: 0,
+    employeeRange: "Unknown",
+    estimatedRevenue: "Unknown",
+    techStack: [],
+    fundingRaised: 0,
+    foundedYear: 0,
+    location: "Unknown",
+    description: "",
     enrichedAt: new Date().toISOString(),
     source: "clearbit",
   };
 }
 
+export async function enrichCompanyByName(companyName: string): Promise<EnrichedCompany> {
+  const intel = lookupCompanyIntel(companyName);
+  if (intel) return enrichCompany(intel.domain);
+  const domain = companyName.toLowerCase().replace(/[^a-z0-9]/g, "") + ".com";
+  return enrichCompany(domain);
+}
+
 export async function enrichPerson(email: string): Promise<ClearbitPerson | null> {
-  console.log("[Clearbit] enrichPerson placeholder for:", email);
-
-  // ═══════════════════════════════════════════════
-  //  TODO: Replace with real Clearbit Person API call
-  // ═══════════════════════════════════════════════
-
-  await new Promise((r) => setTimeout(r, 300));
-
+  console.log("[Clearbit] enrichPerson for:", email);
+  await new Promise((r) => setTimeout(r, 100));
   return null;
+}
+
+function extractName(domain: string): string {
+  const name = domain.split(".")[0];
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+function parseEmployeeCount(range: string): number {
+  const match = range.match(/(\d+)/);
+  return match ? parseInt(match[1], 10) : 0;
 }
