@@ -8,6 +8,7 @@ import EnrichmentProgress from "@/components/EnrichmentProgress";
 import LeadUploader from "@/components/LeadUploader";
 import ICPReport from "@/components/ICPReport";
 import CompanyClassificationReport from "@/components/CompanyClassificationReport";
+import KeywordManager from "@/components/KeywordManager";
 import { generatePersonaWithAI } from "@/services/analyzeLeadsWithAI";
 import { fetchApolloData } from "@/services/fetchApolloData";
 import { runFullEnrichment, EnrichmentProgress as EnrichmentProgressType } from "@/services/enrichmentPipeline";
@@ -24,9 +25,10 @@ import {
   Table2,
   FileSpreadsheet,
   Download,
+  Filter,
 } from "lucide-react";
 
-type ResultsTab = "data" | "icp" | "classification";
+type ResultsTab = "data" | "icp" | "classification" | "keywords";
 
 export default function CampaignWorkspace() {
   const [campaignGoal, setCampaignGoal] = useState("");
@@ -130,6 +132,7 @@ export default function CampaignWorkspace() {
 
   const TABS: { id: ResultsTab; label: string; icon: React.ReactNode }[] = [
     { id: "data", label: "Lead Data", icon: <Table2 className="h-4 w-4" /> },
+    { id: "keywords", label: "Keywords", icon: <Filter className="h-4 w-4" /> },
     { id: "icp", label: "ICP Framework", icon: <Target className="h-4 w-4" /> },
     { id: "classification", label: "Company Analysis", icon: <Building2 className="h-4 w-4" /> },
   ];
@@ -219,6 +222,16 @@ export default function CampaignWorkspace() {
                 onRemoveExclusion={handleRemoveExclusion}
               />
             </div>
+          )}
+
+          {resultsTab === "keywords" && (
+            <KeywordManager
+              leads={leads}
+              locale={locale}
+              exclusions={exclusions}
+              onAddExclusion={handleAddExclusion}
+              onRemoveExclusion={handleRemoveExclusion}
+            />
           )}
 
           {resultsTab === "icp" && (
