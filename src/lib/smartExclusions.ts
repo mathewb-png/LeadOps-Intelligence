@@ -1,151 +1,148 @@
 import { LOCALIZED_EXCLUDE_KEYWORDS } from "@/lib/richardScoring";
 
 /**
- * Categorized exclude keywords.  Only categories that could produce false
- * positives for a given campaign are included in the output.
+ * Smart exclusion engine.  Uses SPECIFIC role titles (not single words)
+ * to avoid nuking legitimate results.
+ *
+ * e.g. "sales" would kill "VP Sales" — but "Sales Representative" won't.
  */
 
 interface ExcludeCategory {
   id: string;
   label: string;
   en: string[];
-  priority: number; // 1 = always include, 2 = include unless target overlaps, 3 = situational
 }
 
 const CATEGORIES: ExcludeCategory[] = [
   {
     id: "hr",
     label: "HR & Recruiting",
-    priority: 1,
     en: [
-      "hr", "human resources", "people ops", "people operations",
-      "recruiting", "recruiter", "talent acquisition", "staffing",
+      "HR Manager", "HR Director", "HR Coordinator", "HR Specialist",
+      "Human Resources Manager", "Human Resources Director",
+      "People Operations Manager", "Talent Acquisition Manager",
+      "Talent Acquisition Specialist", "Recruiter", "Senior Recruiter",
+      "Staffing Manager", "Staffing Coordinator",
     ],
   },
   {
     id: "finance",
     label: "Finance & Accounting",
-    priority: 1,
     en: [
-      "accounting", "accountant", "finance", "financial", "controller",
-      "controlling", "treasurer", "payroll", "bookkeeper", "auditor",
-      "comptable", "cpa",
+      "Accountant", "Senior Accountant", "Staff Accountant",
+      "Accounting Manager", "Accounting Clerk",
+      "Accounts Payable", "Accounts Receivable",
+      "Financial Analyst", "Finance Manager",
+      "Controller", "Comptroller", "Bookkeeper",
+      "Treasurer", "Payroll Manager", "Payroll Specialist",
+      "Auditor", "Tax Manager", "Tax Specialist",
     ],
   },
   {
     id: "legal",
     label: "Legal & Compliance",
-    priority: 1,
     en: [
-      "legal", "counsel", "attorney", "lawyer", "compliance",
-      "paralegal", "litigation",
+      "Legal Counsel", "General Counsel", "Attorney",
+      "Paralegal", "Legal Assistant", "Legal Secretary",
+      "Compliance Manager", "Compliance Officer",
+      "Litigation Manager",
     ],
   },
   {
-    id: "sales_support",
-    label: "Sales & Account Mgmt",
-    priority: 1,
+    id: "sales_reps",
+    label: "Sales Reps & SDRs",
     en: [
-      "sales", "selling", "account executive", "account manager",
-      "account", "accounts", "business development representative",
-      "sdr", "bdr", "inside sales",
+      "Sales Representative", "Sales Associate", "Sales Coordinator",
+      "Inside Sales Representative", "Outside Sales Representative",
+      "Sales Development Representative", "SDR", "BDR",
+      "Account Executive", "Account Coordinator",
+      "Sales Engineer", "Sales Assistant",
+      "Telesales", "Sales Consultant",
     ],
   },
   {
     id: "customer_service",
-    label: "Customer Service & Support",
-    priority: 1,
+    label: "Customer Service",
     en: [
-      "customer success", "customer service", "client service",
-      "support", "service desk", "help desk", "call center",
-      "customer support",
+      "Customer Service Representative", "Customer Service Agent",
+      "Customer Support Specialist", "Customer Support Agent",
+      "Client Service Representative", "Client Service Coordinator",
+      "Customer Success Manager", "Customer Success Associate",
+      "Help Desk Analyst", "Help Desk Technician",
+      "Service Desk Analyst", "Call Center Agent",
+      "Call Center Manager", "Support Specialist",
     ],
   },
   {
     id: "admin",
     label: "Admin & Assistants",
-    priority: 1,
     en: [
-      "assistant", "associate", "coordinator", "secretary",
-      "receptionist", "office manager", "administrative",
-      "clerk", "data entry",
+      "Administrative Assistant", "Executive Assistant",
+      "Office Assistant", "Office Administrator",
+      "Receptionist", "Front Desk Clerk",
+      "Data Entry Clerk", "Data Entry Specialist",
+      "Office Coordinator", "Administrative Coordinator",
+      "Secretary", "File Clerk",
     ],
   },
   {
     id: "junior",
-    label: "Junior & Intern",
-    priority: 1,
+    label: "Junior & Entry-Level",
     en: [
-      "intern", "trainee", "apprentice", "junior", "entry level",
-      "graduate", "student",
+      "Intern", "Trainee", "Apprentice",
+      "Junior Analyst", "Junior Associate",
+      "Graduate Trainee", "Entry Level Associate",
     ],
   },
   {
     id: "procurement",
-    label: "Procurement & Purchasing",
-    priority: 2,
+    label: "Procurement",
     en: [
-      "procurement", "purchasing", "buyer", "sourcing",
-      "supply chain analyst",
+      "Procurement Specialist", "Procurement Officer",
+      "Purchasing Agent", "Purchasing Coordinator",
+      "Buyer", "Senior Buyer",
+      "Supply Chain Analyst",
     ],
   },
   {
-    id: "retail",
+    id: "retail_store",
     label: "Retail & Store",
-    priority: 2,
     en: [
-      "store", "store manager", "boutique", "boutique manager",
-      "retail", "retail operations", "shop manager", "cashier",
-      "visual merchandising", "merchandiser",
+      "Store Manager", "Assistant Store Manager",
+      "Retail Associate", "Retail Sales Associate",
+      "Store Associate", "Store Clerk",
+      "Cashier", "Visual Merchandiser",
+      "Shop Assistant", "Boutique Manager",
     ],
   },
   {
     id: "hospitality",
     label: "Hospitality & Events",
-    priority: 3,
     en: [
-      "hospitality", "event", "events", "exhibitions",
-      "sponsorship", "sponsoring", "catering", "front desk",
-      "concierge", "banquet",
+      "Event Coordinator", "Event Planner", "Event Manager",
+      "Concierge", "Banquet Manager", "Banquet Captain",
+      "Catering Manager", "Catering Coordinator",
+      "Front Desk Agent", "Bellhop",
     ],
   },
   {
     id: "training",
     label: "Training & Education",
-    priority: 3,
     en: [
-      "training", "learning", "academy", "instructor",
-      "teacher", "tutor", "curriculum",
-    ],
-  },
-  {
-    id: "branch",
-    label: "Branch & Counter",
-    priority: 3,
-    en: [
-      "branch", "branch manager", "counter", "teller",
-      "commerce detail",
-    ],
-  },
-  {
-    id: "misc_support",
-    label: "Misc. Support Roles",
-    priority: 2,
-    en: [
-      "supervisor", "deputy", "specialist", "technician",
-      "dispatcher", "scheduler", "logistics coordinator",
+      "Training Coordinator", "Training Manager",
+      "Learning Specialist", "Instructional Designer",
+      "Teacher", "Tutor", "Instructor",
+      "Curriculum Developer",
     ],
   },
 ];
 
-// Industries where certain categories should NOT be excluded
-// (e.g. don't exclude "hospitality" if targeting Hotel industry)
 const INDUSTRY_OVERRIDES: Record<string, string[]> = {
   "Hospitality":  ["hospitality"],
   "Restaurant":   ["hospitality"],
   "Hotel":        ["hospitality"],
-  "Retail":       ["retail"],
-  "eCommerce":    ["retail"],
+  "Retail":       ["retail_store"],
+  "eCommerce":    ["retail_store"],
   "Education":    ["training"],
   "Legal":        ["legal"],
   "Accounting":   ["finance"],
@@ -154,7 +151,40 @@ const INDUSTRY_OVERRIDES: Record<string, string[]> = {
   "Banking":      ["finance"],
   "Recruiting":   ["hr"],
   "Staffing":     ["hr"],
-  "Sales":        ["sales_support"],
+};
+
+// Localized titles (specific role titles, not single words)
+const LOCALIZED_TITLES: Record<string, string[]> = {
+  fr: [
+    "Chargé de clientèle", "Gestionnaire de comptes", "Comptable",
+    "Responsable RH", "DRH", "Responsable recrutement",
+    "Recruteur", "Recruteuse", "Conseiller juridique", "Avocat",
+    "Responsable paie", "Trésorier", "Acheteur", "Acheteuse",
+    "Assistante administrative", "Coordinateur", "Coordinatrice",
+    "Stagiaire", "Secrétaire", "Responsable magasin",
+    "Hôtesse d'accueil", "Agent d'accueil",
+    "Gestionnaire de paie", "Responsable comptable",
+    "Agent commercial", "Chargé de communication",
+  ],
+  de: [
+    "Buchhalter", "Personalleiter", "HR-Manager",
+    "Recruiter", "Rechtsanwalt", "Jurist",
+    "Sachbearbeiter", "Sekretariat", "Empfang",
+    "Filialleiter", "Verkäufer", "Praktikant",
+    "Assistent", "Koordinator", "Ausbildung",
+  ],
+  es: [
+    "Contador", "Asistente administrativo", "Recepcionista",
+    "Reclutador", "Abogado", "Pasante", "Becario",
+    "Gerente de tienda", "Coordinador", "Especialista de nómina",
+    "Ejecutivo de cuentas", "Servicio al cliente",
+  ],
+  it: [
+    "Contabile", "Assistente amministrativo", "Receptionist",
+    "Recruiter", "Avvocato", "Stagista", "Tirocinante",
+    "Responsabile negozio", "Coordinatore",
+    "Servizio clienti", "Responsabile HR",
+  ],
 };
 
 export interface SmartExclusions {
@@ -169,7 +199,6 @@ export function buildSmartExclusions(
   languageCode: string,
   activeUserExclusions: string[]
 ): SmartExclusions {
-  // Determine which categories to suppress based on target industry
   const suppressedCategories = new Set<string>();
   for (const industry of targetIndustries) {
     const overrides = INDUSTRY_OVERRIDES[industry];
@@ -178,43 +207,46 @@ export function buildSmartExclusions(
     }
   }
 
-  // Also suppress categories if target titles contain keywords from that category
-  const allTitlesLower = targetTitles.map((t) => t.toLowerCase()).join(" ");
-  for (const cat of CATEGORIES) {
-    if (cat.en.some((kw) => allTitlesLower.includes(kw))) {
-      suppressedCategories.add(cat.id);
-    }
-  }
+  // Check if any target titles closely match an exclude title
+  // (avoids suppressing "Sales Reps" category when user targets "VP Sales")
+  const targetLower = new Set(targetTitles.map((t) => t.toLowerCase()));
 
-  // Build filtered categories
   const result: { id: string; label: string; keywords: string[] }[] = [];
   const allKeywords: string[] = [];
 
   for (const cat of CATEGORIES) {
     if (suppressedCategories.has(cat.id)) continue;
 
-    const keywords = [...cat.en];
-    allKeywords.push(...keywords);
-    result.push({ id: cat.id, label: cat.label, keywords });
+    // Filter out any exclude title that exactly matches a target title
+    const safe = cat.en.filter(
+      (kw) => !targetLower.has(kw.toLowerCase())
+    );
+
+    if (safe.length === 0) continue;
+
+    allKeywords.push(...safe);
+    result.push({ id: cat.id, label: cat.label, keywords: safe });
   }
 
-  // Add localized exclude keywords (filtered by same category logic)
-  const localized = LOCALIZED_EXCLUDE_KEYWORDS[languageCode] || [];
+  // Localized specific titles
+  const localized = LOCALIZED_TITLES[languageCode] || [];
   if (localized.length > 0) {
-    const localizedFiltered = localized.filter(
-      (kw) => !allKeywords.some((ek) => ek.toLowerCase() === kw.toLowerCase())
+    const localizedSafe = localized.filter(
+      (kw) =>
+        !targetLower.has(kw.toLowerCase()) &&
+        !allKeywords.some((ek) => ek.toLowerCase() === kw.toLowerCase())
     );
-    if (localizedFiltered.length > 0) {
-      allKeywords.push(...localizedFiltered);
+    if (localizedSafe.length > 0) {
+      allKeywords.push(...localizedSafe);
       result.push({
         id: "localized",
         label: `Localized (${languageCode.toUpperCase()})`,
-        keywords: localizedFiltered,
+        keywords: localizedSafe,
       });
     }
   }
 
-  // Add user-specific exclusions
+  // User custom exclusions
   if (activeUserExclusions.length > 0) {
     const userOnly = activeUserExclusions.filter(
       (w) => !allKeywords.some((ek) => ek.toLowerCase() === w.toLowerCase())
