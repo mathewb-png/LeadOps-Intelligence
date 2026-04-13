@@ -14,6 +14,7 @@ import { computeRichardScore, scoreToTier } from "@/lib/richardScoring";
 
 interface LeadUploaderProps {
   onLeadsImported: (leads: Lead[]) => void;
+  languageCode?: string;
 }
 
 const KNOWN_HEADERS: Record<string, keyof ColumnMapping> = {
@@ -58,7 +59,8 @@ function autoMapColumns(headers: string[]): ColumnMapping {
 function parseRowToLead(
   row: Record<string, unknown>,
   mapping: ColumnMapping,
-  index: number
+  index: number,
+  languageCode?: string
 ): Lead | null {
   const get = (field: keyof ColumnMapping) => {
     const col = mapping[field];
@@ -74,7 +76,7 @@ function parseRowToLead(
   if (!name && !email) return null;
 
   const jobTitle = get("jobTitle");
-  const richardScore = jobTitle ? computeRichardScore(jobTitle) : 4;
+  const richardScore = jobTitle ? computeRichardScore(jobTitle, languageCode) : 4;
 
   return {
     id: `upload-${Date.now()}-${index}`,
@@ -94,7 +96,7 @@ function parseRowToLead(
   };
 }
 
-export default function LeadUploader({ onLeadsImported }: LeadUploaderProps) {
+export default function LeadUploader({ onLeadsImported, languageCode }: LeadUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -157,7 +159,7 @@ export default function LeadUploader({ onLeadsImported }: LeadUploaderProps) {
       let skipped = 0;
 
       for (let i = 0; i < rows.length; i++) {
-        const lead = parseRowToLead(rows[i], autoMapping, i);
+        const lead = parseRowToLead(rows[i], autoMapping, i, languageCode);
         if (lead) {
           leads.push(lead);
         } else {
@@ -193,7 +195,7 @@ export default function LeadUploader({ onLeadsImported }: LeadUploaderProps) {
     const leads: Lead[] = [];
     let skipped = 0;
     for (let i = 0; i < rawRows.length; i++) {
-      const lead = parseRowToLead(rawRows[i], mapping, i);
+      const lead = parseRowToLead(rawRows[i], mapping, i, languageCode);
       if (lead) leads.push(lead);
       else skipped++;
     }

@@ -104,7 +104,7 @@ export default function CampaignWorkspace() {
         personaTitles: allTitles,
         industryKeywords: persona.industryKeywords,
         excludedWords: activeExclusions,
-        location: locale.country,
+        locale,
       });
       setLeads(fetched);
       setPipeline(INITIAL_PIPELINE);
@@ -257,7 +257,7 @@ export default function CampaignWorkspace() {
         </button>
       </div>
 
-      {showUploader && <LeadUploader onLeadsImported={handleLeadsImported} />}
+      {showUploader && <LeadUploader onLeadsImported={handleLeadsImported} languageCode={locale.languageCode} />}
 
       <IntentIntake
         value={campaignGoal}
