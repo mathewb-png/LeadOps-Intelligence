@@ -6,16 +6,13 @@ import LeadDataGrid from "@/components/LeadDataGrid";
 import FeedbackSidebar from "@/components/FeedbackSidebar";
 import EnrichmentProgress from "@/components/EnrichmentProgress";
 import LeadUploader from "@/components/LeadUploader";
-import ICPReport from "@/components/ICPReport";
-import CompanyClassificationReport from "@/components/CompanyClassificationReport";
-import KeywordManager from "@/components/KeywordManager";
 import CampaignHistory from "@/components/CampaignHistory";
 import SearchPromptGenerator from "@/components/SearchPromptGenerator";
 import CollapsibleSection from "@/components/CollapsibleSection";
 import { generatePersonaWithAI } from "@/services/analyzeLeadsWithAI";
 import { fetchApolloData } from "@/services/fetchApolloData";
 import { runFullEnrichment, EnrichmentProgress as EnrichmentProgressType } from "@/services/enrichmentPipeline";
-import { exportFullReport, exportICPFramework, exportCompanyClassification } from "@/lib/exportXlsx";
+import { exportFullReport } from "@/lib/exportXlsx";
 import { getDefaultLocale, detectLocaleFromLeads } from "@/lib/localeData";
 import {
   addExclusion,
@@ -23,12 +20,9 @@ import {
   fetchActiveExclusions,
 } from "@/services/updateExclusionLogic";
 import {
-  Target,
-  Building2,
   Table2,
   FileSpreadsheet,
   Download,
-  Filter,
   Sparkles,
   Users,
   Activity,
@@ -350,75 +344,6 @@ export default function CampaignWorkspace() {
         </CollapsibleSection>
       )}
 
-      {/* Keywords */}
-      {hasResults && (
-        <CollapsibleSection
-          title="Keywords"
-          icon={<Filter className="h-4 w-4" />}
-          badge={`${exclusions.filter((e) => e.active).length} active`}
-        >
-          <div className="p-4">
-            <KeywordManager
-              leads={leads}
-              locale={locale}
-              exclusions={exclusions}
-              onAddExclusion={handleAddExclusion}
-              onRemoveExclusion={handleRemoveExclusion}
-            />
-          </div>
-        </CollapsibleSection>
-      )}
-
-      {/* ICP Framework */}
-      {hasResults && (
-        <CollapsibleSection
-          title="ICP Framework"
-          icon={<Target className="h-4 w-4" />}
-          actions={
-            <button
-              onClick={() => exportICPFramework(leads, campaignGoal, locale)}
-              className="rounded-md p-1 text-gray-400 hover:text-brand-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              title="Export ICP Framework"
-            >
-              <Download className="h-3.5 w-3.5" />
-            </button>
-          }
-        >
-          <div className="p-4">
-            <ICPReport
-              leads={leads}
-              campaignGoal={campaignGoal}
-              locale={locale}
-              onExport={() => exportICPFramework(leads, campaignGoal, locale)}
-            />
-          </div>
-        </CollapsibleSection>
-      )}
-
-      {/* Company Analysis */}
-      {hasResults && (
-        <CollapsibleSection
-          title="Company Analysis"
-          icon={<Building2 className="h-4 w-4" />}
-          actions={
-            <button
-              onClick={() => exportCompanyClassification(leads, locale)}
-              className="rounded-md p-1 text-gray-400 hover:text-brand-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              title="Export Company Analysis"
-            >
-              <Download className="h-3.5 w-3.5" />
-            </button>
-          }
-        >
-          <div className="p-4">
-            <CompanyClassificationReport
-              leads={leads}
-              locale={locale}
-              onExport={() => exportCompanyClassification(leads, locale)}
-            />
-          </div>
-        </CollapsibleSection>
-      )}
     </div>
   );
 }
