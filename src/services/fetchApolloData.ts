@@ -54,11 +54,13 @@ export async function fetchApolloData(params: FetchApolloParams): Promise<Lead[]
 
   await new Promise((r) => setTimeout(r, 1200));
 
-  const countryCode = params.locale?.countryCode || "US";
+  const countryCode = params.locale?.countryCode || "GLOBAL";
   const languageCode = params.locale?.languageCode || "en";
   const region = params.locale?.region;
 
-  const mockResults = generateMockApolloResults(params, countryCode, region);
+  const mockResults = countryCode === "GLOBAL"
+    ? generateGlobalMockResults(params)
+    : generateMockApolloResults(params, countryCode, region);
 
   return mockResults.map((raw, i) => {
     const richardScore = computeRichardScore(raw.jobTitle, languageCode);
@@ -79,6 +81,24 @@ export async function fetchApolloData(params: FetchApolloParams): Promise<Lead[]
       excluded: false,
     };
   });
+}
+
+function generateGlobalMockResults(params: FetchApolloParams) {
+  const countryCodes = Object.keys(COUNTRY_MOCKS);
+  const allResults: ReturnType<typeof generateMockApolloResults> = [];
+
+  for (const cc of countryCodes) {
+    const countryResults = generateMockApolloResults(params, cc);
+    const slice = countryResults.slice(0, Math.max(3, Math.ceil(countryResults.length / 3)));
+    allResults.push(...slice);
+  }
+
+  for (let i = allResults.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [allResults[i], allResults[j]] = [allResults[j], allResults[i]];
+  }
+
+  return allResults.slice(0, 50);
 }
 
 // ─── Country-specific mock data ─────────────────────────────────────────────

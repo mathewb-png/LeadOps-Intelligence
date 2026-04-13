@@ -21,6 +21,14 @@ export interface Lead {
   linkedinUrl?: string;
   crmContactId?: string;
   outreachStatus?: "not_sent" | "queued" | "sent";
+  companyDescription?: string;
+  companyFoundedYear?: number;
+  companyDomain?: string;
+  companyLocation?: string;
+  investors?: string[];
+  lastFundingType?: string;
+  lastFundingDate?: string;
+  emailConfidence?: number;
 }
 
 export type LeadTier = "primary" | "stakeholder" | "influence" | "peripheral" | "irrelevant";

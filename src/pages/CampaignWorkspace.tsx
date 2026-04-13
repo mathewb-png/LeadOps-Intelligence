@@ -1,23 +1,16 @@
-import { useState, useCallback } from "react";
-import { Lead, PersonaOutput, ExclusionWord, PipelineStatus, EmailTemplate, CampaignLocale } from "@/types";
+import { useState, useCallback, useRef } from "react";
+import { Lead, PersonaOutput, ExclusionWord, CampaignLocale } from "@/types";
 import IntentIntake from "@/components/IntentIntake";
 import PersonaArchitect from "@/components/PersonaArchitect";
 import LeadDataGrid from "@/components/LeadDataGrid";
 import FeedbackSidebar from "@/components/FeedbackSidebar";
-import PipelineActionBar from "@/components/PipelineActionBar";
+import EnrichmentProgress from "@/components/EnrichmentProgress";
 import LeadUploader from "@/components/LeadUploader";
-import EmailTemplateEditor from "@/components/EmailTemplateEditor";
 import ICPReport from "@/components/ICPReport";
 import CompanyClassificationReport from "@/components/CompanyClassificationReport";
 import { generatePersonaWithAI } from "@/services/analyzeLeadsWithAI";
 import { fetchApolloData } from "@/services/fetchApolloData";
-import { enrichCompany } from "@/services/clearbitService";
-import { getTechStack } from "@/services/builtWithService";
-import { validateBatch } from "@/services/zeroBounceService";
-import { syncBatchToCRM } from "@/services/hubspotService";
-import { addBatchToCampaign } from "@/services/instantlyService";
-import { sendBatchSummary } from "@/services/slackService";
-import { scoreLeadsWithGroq } from "@/services/groqService";
+import { runFullEnrichment, EnrichmentProgress as EnrichmentProgressType } from "@/services/enrichmentPipeline";
 import { exportICPFramework, exportCompanyClassification } from "@/lib/exportXlsx";
 import { getDefaultLocale, detectLocaleFromLeads } from "@/lib/localeData";
 import {
@@ -29,19 +22,10 @@ import {
   Target,
   Building2,
   Table2,
-  Mail,
   FileSpreadsheet,
 } from "lucide-react";
 
-const INITIAL_PIPELINE: PipelineStatus = {
-  enrichment: { status: "idle", enrichedCount: 0 },
-  verification: { status: "idle", verifiedCount: 0, validCount: 0 },
-  crmSync: { status: "idle", syncResult: null },
-  outreach: { status: "idle", campaign: null },
-  slackNotified: false,
-};
-
-type ResultsTab = "data" | "icp" | "classification" | "email";
+type ResultsTab = "data" | "icp" | "classification";
 
 export default function CampaignWorkspace() {
   const [campaignGoal, setCampaignGoal] = useState("");
@@ -54,9 +38,24 @@ export default function CampaignWorkspace() {
   });
   const [generatingPersona, setGeneratingPersona] = useState(false);
   const [fetchingLeads, setFetchingLeads] = useState(false);
-  const [pipeline, setPipeline] = useState<PipelineStatus>(INITIAL_PIPELINE);
+  const [enriching, setEnriching] = useState(false);
+  const [enrichmentProgress, setEnrichmentProgress] = useState<EnrichmentProgressType | null>(null);
   const [showUploader, setShowUploader] = useState(false);
   const [resultsTab, setResultsTab] = useState<ResultsTab>("data");
+  const enrichAbort = useRef(false);
+
+  const runEnrichment = useCallback(async (rawLeads: Lead[], loc: CampaignLocale) => {
+    setEnriching(true);
+    enrichAbort.current = false;
+    try {
+      const enriched = await runFullEnrichment(rawLeads, loc, (progress) => {
+        if (!enrichAbort.current) setEnrichmentProgress(progress);
+      });
+      if (!enrichAbort.current) setLeads(enriched);
+    } finally {
+      setEnriching(false);
+    }
+  }, []);
 
   const handleLeadsImported = useCallback((imported: Lead[]) => {
     setLeads((prev) => {
@@ -76,11 +75,13 @@ export default function CampaignWorkspace() {
         }));
       }
 
+      // Auto-enrich after import
+      setTimeout(() => runEnrichment(merged, locale), 100);
+
       return merged;
     });
-    setPipeline(INITIAL_PIPELINE);
     setShowUploader(false);
-  }, []);
+  }, [locale, runEnrichment]);
 
   const handleGeneratePersona = useCallback(async () => {
     setGeneratingPersona(true);
@@ -88,7 +89,7 @@ export default function CampaignWorkspace() {
       const result = await generatePersonaWithAI(campaignGoal);
       setPersona(result);
       setLeads([]);
-      setPipeline(INITIAL_PIPELINE);
+      setEnrichmentProgress(null);
     } finally {
       setGeneratingPersona(false);
     }
@@ -107,109 +108,12 @@ export default function CampaignWorkspace() {
         locale,
       });
       setLeads(fetched);
-      setPipeline(INITIAL_PIPELINE);
+      // Auto-enrich right after fetch
+      await runEnrichment(fetched, locale);
     } finally {
       setFetchingLeads(false);
     }
-  }, [persona, exclusions, locale]);
-
-  const handleEnrich = useCallback(async () => {
-    setPipeline((p) => ({ ...p, enrichment: { status: "running", enrichedCount: 0 } }));
-    try {
-      const enriched = await Promise.all(
-        leads.map(async (lead) => {
-          const domain = lead.email.split("@")[1] || `${lead.company.toLowerCase().replace(/\s/g, "")}.com`;
-          const [company, tech] = await Promise.all([
-            enrichCompany(domain),
-            getTechStack(domain),
-          ]);
-          return {
-            ...lead,
-            enriched: true,
-            techStack: company.techStack.length > 0 ? company.techStack : tech.technologies.map((t) => t.name),
-            estimatedRevenue: company.estimatedRevenue,
-            fundingRaised: company.fundingRaised,
-          };
-        })
-      );
-      setLeads(enriched);
-      setPipeline((p) => ({
-        ...p,
-        enrichment: { status: "done", enrichedCount: enriched.length },
-      }));
-    } catch {
-      setPipeline((p) => ({ ...p, enrichment: { status: "idle", enrichedCount: 0 } }));
-    }
-  }, [leads]);
-
-  const handleVerifyEmails = useCallback(async () => {
-    setPipeline((p) => ({
-      ...p,
-      verification: { status: "running", verifiedCount: 0, validCount: 0 },
-    }));
-    try {
-      const emails = leads.map((l) => l.email);
-      const result = await validateBatch(emails);
-      const statusMap = new Map(result.results.map((r) => [r.email, r.status]));
-      setLeads((prev) =>
-        prev.map((l) => ({ ...l, emailStatus: statusMap.get(l.email) || l.emailStatus }))
-      );
-      setPipeline((p) => ({
-        ...p,
-        verification: {
-          status: "done",
-          verifiedCount: result.totalEmails,
-          validCount: result.validCount,
-        },
-      }));
-    } catch {
-      setPipeline((p) => ({
-        ...p,
-        verification: { status: "idle", verifiedCount: 0, validCount: 0 },
-      }));
-    }
-  }, [leads]);
-
-  const handleSyncCRM = useCallback(async () => {
-    setPipeline((p) => ({ ...p, crmSync: { status: "running", syncResult: null } }));
-    try {
-      const qualified = leads.filter((l) => l.richardScore >= 7);
-      const result = await syncBatchToCRM(qualified);
-      setLeads((prev) =>
-        prev.map((l) =>
-          l.richardScore >= 7 ? { ...l, crmContactId: `hs-${l.id}` } : l
-        )
-      );
-      setPipeline((p) => ({ ...p, crmSync: { status: "done", syncResult: result } }));
-    } catch {
-      setPipeline((p) => ({ ...p, crmSync: { status: "idle", syncResult: null } }));
-    }
-  }, [leads]);
-
-  const handleStartOutreach = useCallback(async () => {
-    setPipeline((p) => ({ ...p, outreach: { status: "running", campaign: null } }));
-    try {
-      const result = await addBatchToCampaign("camp-demo-1", leads);
-      setLeads((prev) =>
-        prev.map((l) =>
-          l.richardScore >= 7 ? { ...l, outreachStatus: "queued" as const } : l
-        )
-      );
-      setPipeline((p) => ({ ...p, outreach: { status: "done", campaign: result } }));
-    } catch {
-      setPipeline((p) => ({ ...p, outreach: { status: "idle", campaign: null } }));
-    }
-  }, [leads]);
-
-  const handleNotifySlack = useCallback(async () => {
-    await sendBatchSummary(leads);
-    setPipeline((p) => ({ ...p, slackNotified: true }));
-  }, [leads]);
-
-  const handleScoreWithGroq = useCallback(async () => {
-    const rescored = await scoreLeadsWithGroq(leads);
-    setLeads(rescored);
-  }, [leads]);
+  }, [persona, exclusions, locale, runEnrichment]);
 
   const handleAddExclusion = useCallback(async (word: string, fromTitles: string[]) => {
     await addExclusion(word, fromTitles);
@@ -223,18 +127,10 @@ export default function CampaignWorkspace() {
     setExclusions(updated);
   }, []);
 
-  const handleSendOutreach = useCallback(
-    async (_template: EmailTemplate) => {
-      await handleStartOutreach();
-    },
-    [handleStartOutreach]
-  );
-
   const TABS: { id: ResultsTab; label: string; icon: React.ReactNode }[] = [
     { id: "data", label: "Lead Data", icon: <Table2 className="h-4 w-4" /> },
     { id: "icp", label: "ICP Framework", icon: <Target className="h-4 w-4" /> },
     { id: "classification", label: "Company Analysis", icon: <Building2 className="h-4 w-4" /> },
-    { id: "email", label: "Email Outreach", icon: <Mail className="h-4 w-4" /> },
   ];
 
   return (
@@ -245,7 +141,7 @@ export default function CampaignWorkspace() {
             Campaign Workspace
           </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Define your campaign, select target country &amp; language, import leads, and launch outreach.
+            Define your campaign, select target country &amp; language, and let all APIs scrape &amp; enrich your leads automatically.
           </p>
         </div>
         <button
@@ -276,15 +172,11 @@ export default function CampaignWorkspace() {
 
       {leads.length > 0 && (
         <>
-          <PipelineActionBar
-            leads={leads}
-            status={pipeline}
-            onEnrich={handleEnrich}
-            onVerifyEmails={handleVerifyEmails}
-            onSyncCRM={handleSyncCRM}
-            onStartOutreach={handleStartOutreach}
-            onNotifySlack={handleNotifySlack}
-            onScoreWithGroq={handleScoreWithGroq}
+          {/* Enrichment Progress replaces old Pipeline Actions */}
+          <EnrichmentProgress
+            progress={enrichmentProgress}
+            isRunning={enriching}
+            leadCount={leads.length}
           />
 
           {/* Results Tab Navigation */}
@@ -332,15 +224,6 @@ export default function CampaignWorkspace() {
               leads={leads}
               locale={locale}
               onExport={() => exportCompanyClassification(leads, locale)}
-            />
-          )}
-
-          {resultsTab === "email" && (
-            <EmailTemplateEditor
-              leads={leads}
-              campaignGoal={campaignGoal}
-              locale={locale}
-              onSendOutreach={handleSendOutreach}
             />
           )}
         </>
