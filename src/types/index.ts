@@ -347,6 +347,50 @@ export interface SlackNotification {
   sentAt: string;
 }
 
+// ─── Excel Upload ───
+
+export interface UploadedFileResult {
+  fileName: string;
+  totalRows: number;
+  parsedLeads: number;
+  skippedRows: number;
+  errors: string[];
+  columnMapping: Record<string, string>;
+}
+
+export interface ColumnMapping {
+  name?: string;
+  email?: string;
+  company?: string;
+  jobTitle?: string;
+  phone?: string;
+  industry?: string;
+  location?: string;
+  [key: string]: string | undefined;
+}
+
+// ─── Email Templates ───
+
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type EmailVariable =
+  | "{{firstName}}"
+  | "{{lastName}}"
+  | "{{fullName}}"
+  | "{{company}}"
+  | "{{jobTitle}}"
+  | "{{industry}}"
+  | "{{richardScore}}"
+  | "{{tier}}"
+  | "{{campaignGoal}}";
+
 // ─── Aggregated Pipeline Status ───
 
 export interface PipelineStatus {

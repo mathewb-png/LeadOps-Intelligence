@@ -1,10 +1,12 @@
 import { useState, useCallback } from "react";
-import { Lead, PersonaOutput, ExclusionWord, PipelineStatus } from "@/types";
+import { Lead, PersonaOutput, ExclusionWord, PipelineStatus, EmailTemplate } from "@/types";
 import IntentIntake from "@/components/IntentIntake";
 import PersonaArchitect from "@/components/PersonaArchitect";
 import LeadDataGrid from "@/components/LeadDataGrid";
 import FeedbackSidebar from "@/components/FeedbackSidebar";
 import PipelineActionBar from "@/components/PipelineActionBar";
+import LeadUploader from "@/components/LeadUploader";
+import EmailTemplateEditor from "@/components/EmailTemplateEditor";
 import { generatePersonaWithAI } from "@/services/analyzeLeadsWithAI";
 import { fetchApolloData } from "@/services/fetchApolloData";
 import { enrichCompany } from "@/services/clearbitService";
@@ -39,6 +41,17 @@ export default function CampaignWorkspace() {
   const [generatingPersona, setGeneratingPersona] = useState(false);
   const [fetchingLeads, setFetchingLeads] = useState(false);
   const [pipeline, setPipeline] = useState<PipelineStatus>(INITIAL_PIPELINE);
+  const [showUploader, setShowUploader] = useState(false);
+
+  const handleLeadsImported = useCallback((imported: Lead[]) => {
+    setLeads((prev) => {
+      const existingEmails = new Set(prev.map((l) => l.email));
+      const deduped = imported.filter((l) => !existingEmails.has(l.email));
+      return [...prev, ...deduped];
+    });
+    setPipeline(INITIAL_PIPELINE);
+    setShowUploader(false);
+  }, []);
 
   const handleGeneratePersona = useCallback(async () => {
     setGeneratingPersona(true);
@@ -180,16 +193,33 @@ export default function CampaignWorkspace() {
     setExclusions(updated);
   }, []);
 
+  const handleSendOutreach = useCallback(
+    async (_template: EmailTemplate) => {
+      await handleStartOutreach();
+    },
+    [handleStartOutreach]
+  );
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-          Campaign Workspace
-        </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Define your campaign, generate personas, fetch & score leads, enrich, verify, and push to CRM.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            Campaign Workspace
+          </h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Define your campaign, import or fetch leads, score, enrich, write emails, and launch outreach.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowUploader(!showUploader)}
+          className={showUploader ? "btn-secondary" : "btn-primary"}
+        >
+          {showUploader ? "Hide Uploader" : "Upload Excel / CSV"}
+        </button>
       </div>
+
+      {showUploader && <LeadUploader onLeadsImported={handleLeadsImported} />}
 
       <IntentIntake
         value={campaignGoal}
@@ -215,6 +245,12 @@ export default function CampaignWorkspace() {
             onStartOutreach={handleStartOutreach}
             onNotifySlack={handleNotifySlack}
             onScoreWithGroq={handleScoreWithGroq}
+          />
+
+          <EmailTemplateEditor
+            leads={leads}
+            campaignGoal={campaignGoal}
+            onSendOutreach={handleSendOutreach}
           />
 
           <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
