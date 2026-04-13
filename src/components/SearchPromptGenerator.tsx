@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, ChevronDown } from "lucide-react";
 import { PersonaOutput, CampaignLocale, ExclusionWord, Lead } from "@/types";
-import { buildSearchPrompt, SearchPromptFields } from "@/lib/buildSearchPrompt";
+import { buildSearchPrompt, SearchPromptFields, SmartExclusions } from "@/lib/buildSearchPrompt";
 
 interface SearchPromptGeneratorProps {
   campaignGoal: string;
@@ -47,7 +47,7 @@ export default function SearchPromptGenerator({
         </p>
 
         <CopyRow label="Job Titles" items={fields.jobTitles} color="brand" />
-        <CopyRow label="Exclude Job Titles" items={fields.excludeJobTitles} color="red" />
+        <ExcludeSection data={fields.excludeJobTitles} />
         <CopyRow label="Locations" items={fields.locations} color="blue" />
         {fields.excludeLocations.length > 0 && (
           <CopyRow label="Exclude Locations" items={fields.excludeLocations} color="red" />
@@ -128,6 +128,68 @@ function SeniorityRow({ active }: { active: string[] }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/* ── Exclude Job Titles — smart categorized ── */
+
+function ExcludeSection({ data }: { data: SmartExclusions }) {
+  const [expanded, setExpanded] = useState(false);
+  const commaStr = data.allKeywords.join(", ");
+
+  if (data.totalCount === 0) return null;
+
+  return (
+    <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/30">
+      {/* Header — always visible, copy all */}
+      <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-red-600 dark:text-red-400">
+            Exclude Job Titles
+          </span>
+          <span className="text-[10px] font-normal text-gray-400">
+            ({data.totalCount}) — {data.categories.length} categories
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <CopyBtn value={commaStr} />
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="rounded-md p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
+            title={expanded ? "Collapse categories" : "Show categories"}
+          >
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* Comma string — always visible */}
+      <div className="px-4 pb-3">
+        <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed break-words line-clamp-3">
+          {commaStr}
+        </p>
+      </div>
+
+      {/* Expanded — show by category with individual copy */}
+      {expanded && (
+        <div className="border-t border-red-200 dark:border-red-800 px-4 py-3 space-y-2.5">
+          {data.categories.map((cat) => (
+            <div key={cat.id} className="rounded-md bg-red-100/50 dark:bg-red-900/20 px-3 py-2">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[11px] font-semibold text-red-700 dark:text-red-300">
+                  {cat.label}
+                  <span className="ml-1 text-[10px] font-normal text-gray-400">({cat.keywords.length})</span>
+                </span>
+                <CopyBtn value={cat.keywords.join(", ")} />
+              </div>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
+                {cat.keywords.join(", ")}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,15 +1,17 @@
 import { PersonaOutput, CampaignLocale, Lead } from "@/types";
-import { ICP_EXCLUDE_KEYWORDS, LOCALIZED_EXCLUDE_KEYWORDS } from "@/lib/richardScoring";
+import { buildSmartExclusions, SmartExclusions } from "@/lib/smartExclusions";
 
 export interface SearchPromptFields {
   jobTitles: string[];
-  excludeJobTitles: string[];
+  excludeJobTitles: SmartExclusions;
   locations: string[];
   excludeLocations: string[];
   companyKeywords: string[];
   seniority: string[];
   prompt: string;
 }
+
+export type { SmartExclusions };
 
 // Matches the exact seniority values in the external tool
 const SENIORITY_MAP: Record<string, string[]> = {
@@ -109,15 +111,6 @@ function extractIndustryKeywords(campaignGoal: string, persona: PersonaOutput): 
   return [...new Set(keywords)].slice(0, 10);
 }
 
-function buildExcludeJobTitles(activeExclusions: string[], languageCode: string): string[] {
-  const set = new Set<string>();
-  for (const w of ICP_EXCLUDE_KEYWORDS) set.add(w);
-  const localized = LOCALIZED_EXCLUDE_KEYWORDS[languageCode] || [];
-  for (const w of localized) set.add(w);
-  for (const w of activeExclusions) set.add(w);
-  return Array.from(set);
-}
-
 function buildCondensedPrompt(
   keywords: string[],
   locations: string[],
@@ -158,10 +151,16 @@ export function buildSearchPrompt(
   const companyKeywords = extractIndustryKeywords(campaignGoal, persona);
   const locations = extractLocations(locale, leads);
   const seniority = detectSeniority(jobTitles);
-  const excludeJobTitles = buildExcludeJobTitles(exclusions, locale.languageCode);
   const excludeLocations: string[] = [];
 
-  const prompt = buildCondensedPrompt(companyKeywords, locations, jobTitles, excludeJobTitles);
+  const excludeJobTitles = buildSmartExclusions(
+    persona.industryKeywords,
+    jobTitles,
+    locale.languageCode,
+    exclusions
+  );
+
+  const prompt = buildCondensedPrompt(companyKeywords, locations, jobTitles, excludeJobTitles.allKeywords);
 
   return {
     jobTitles,
