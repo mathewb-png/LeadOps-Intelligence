@@ -11,6 +11,7 @@ import CompanyClassificationReport from "@/components/CompanyClassificationRepor
 import KeywordManager from "@/components/KeywordManager";
 import CampaignHistory from "@/components/CampaignHistory";
 import SearchPromptGenerator from "@/components/SearchPromptGenerator";
+import CollapsibleSection from "@/components/CollapsibleSection";
 import { generatePersonaWithAI } from "@/services/analyzeLeadsWithAI";
 import { fetchApolloData } from "@/services/fetchApolloData";
 import { runFullEnrichment, EnrichmentProgress as EnrichmentProgressType } from "@/services/enrichmentPipeline";
@@ -28,6 +29,9 @@ import {
   FileSpreadsheet,
   Download,
   Filter,
+  Sparkles,
+  Users,
+  Activity,
 } from "lucide-react";
 
 const CAMPAIGNS_KEY = "leadops-campaigns";
@@ -52,8 +56,6 @@ function deriveName(goal: string): string {
   return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
 }
 
-type ResultsTab = "data" | "icp" | "classification" | "keywords";
-
 export default function CampaignWorkspace() {
   const [campaignGoal, setCampaignGoal] = useState("");
   const [locale, setLocale] = useState<CampaignLocale>(getDefaultLocale);
@@ -68,7 +70,6 @@ export default function CampaignWorkspace() {
   const [enriching, setEnriching] = useState(false);
   const [enrichmentProgress, setEnrichmentProgress] = useState<EnrichmentProgressType | null>(null);
   const [showUploader, setShowUploader] = useState(false);
-  const [resultsTab, setResultsTab] = useState<ResultsTab>("data");
   const enrichAbort = useRef(false);
 
   const enrichmentRef = useRef<HTMLDivElement>(null);
@@ -221,33 +222,42 @@ export default function CampaignWorkspace() {
     setExclusions(updated);
   }, []);
 
-  const TABS: { id: ResultsTab; label: string; icon: React.ReactNode }[] = [
-    { id: "data", label: "Lead Data", icon: <Table2 className="h-4 w-4" /> },
-    { id: "keywords", label: "Keywords", icon: <Filter className="h-4 w-4" /> },
-    { id: "icp", label: "ICP Framework", icon: <Target className="h-4 w-4" /> },
-    { id: "classification", label: "Company Analysis", icon: <Building2 className="h-4 w-4" /> },
-  ];
+  const hasResults = leads.length > 0;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-3">
+      {/* Header */}
+      <div className="flex items-center justify-between py-2">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
             Campaign Workspace
           </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Define your campaign, select target country &amp; language, and let all APIs scrape &amp; enrich your leads automatically.
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+            Define your campaign, launch, and review all results below.
           </p>
         </div>
-        <button
-          onClick={() => setShowUploader(!showUploader)}
-          className={`${showUploader ? "btn-secondary" : "btn-primary"} flex items-center gap-2`}
-        >
-          <FileSpreadsheet className="h-4 w-4" />
-          {showUploader ? "Hide Uploader" : "Upload Excel / CSV"}
-        </button>
+        <div className="flex items-center gap-2">
+          {hasResults && (
+            <button
+              onClick={() => exportFullReport(leads, campaignGoal, locale)}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Full Report</span>
+              <span className="sm:hidden">XLSX</span>
+            </button>
+          )}
+          <button
+            onClick={() => setShowUploader(!showUploader)}
+            className={`${showUploader ? "btn-secondary" : "btn-primary"} flex items-center gap-2`}
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            <span className="hidden sm:inline">{showUploader ? "Hide" : "Upload"}</span>
+          </button>
+        </div>
       </div>
 
+      {/* Campaign History */}
       <CampaignHistory
         campaigns={campaigns}
         activeCampaignId={activeCampaignId}
@@ -256,8 +266,10 @@ export default function CampaignWorkspace() {
         onNewCampaign={handleNewCampaign}
       />
 
+      {/* Uploader */}
       {showUploader && <LeadUploader onLeadsImported={handleLeadsImported} languageCode={locale.languageCode} />}
 
+      {/* Campaign Goal */}
       <IntentIntake
         value={campaignGoal}
         onChange={setCampaignGoal}
@@ -267,60 +279,64 @@ export default function CampaignWorkspace() {
         loading={generatingPersona || fetchingLeads}
       />
 
-      <PersonaArchitect
-        persona={persona}
-      />
-
+      {/* Generated Persona */}
       {persona && (
-        <SearchPromptGenerator
-          campaignGoal={campaignGoal}
-          persona={persona}
-          locale={locale}
-          exclusions={exclusions}
-          leads={leads}
-        />
+        <CollapsibleSection
+          title="Generated Persona"
+          icon={<Users className="h-4 w-4" />}
+          defaultOpen={!hasResults}
+          badge={`${persona.tier1Titles.length + persona.tier2Titles.length + persona.tier3Titles.length} titles`}
+        >
+          <PersonaArchitect persona={persona} />
+        </CollapsibleSection>
       )}
 
-      {leads.length > 0 && (
-        <>
-          <div ref={enrichmentRef}>
-            <EnrichmentProgress
-              progress={enrichmentProgress}
-              isRunning={enriching}
-              leadCount={leads.length}
-            />
-          </div>
+      {/* Search Prompt */}
+      {persona && (
+        <CollapsibleSection
+          title="Search Prompt"
+          icon={<Sparkles className="h-4 w-4" />}
+          defaultOpen={!hasResults}
+        >
+          <SearchPromptGenerator
+            campaignGoal={campaignGoal}
+            persona={persona}
+            locale={locale}
+            exclusions={exclusions}
+            leads={leads}
+          />
+        </CollapsibleSection>
+      )}
 
-          {/* Results Tab Navigation + Unified Export */}
-          <div className="flex items-center gap-3">
-            <div className="flex flex-1 items-center gap-1 rounded-xl bg-gray-100 dark:bg-gray-800 p-1">
-              {TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setResultsTab(tab.id)}
-                  className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
-                    resultsTab === tab.id
-                      ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm"
-                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-                  }`}
-                >
-                  {tab.icon}
-                  <span className="hidden sm:inline">{tab.label}</span>
-                </button>
-              ))}
+      {/* Enrichment Progress */}
+      {hasResults && (
+        <div ref={enrichmentRef}>
+          <CollapsibleSection
+            title="Enrichment Progress"
+            icon={<Activity className="h-4 w-4" />}
+            defaultOpen={enriching}
+            badge={enriching ? "Running" : "Done"}
+          >
+            <div className="p-4">
+              <EnrichmentProgress
+                progress={enrichmentProgress}
+                isRunning={enriching}
+                leadCount={leads.length}
+              />
             </div>
-            <button
-              onClick={() => exportFullReport(leads, campaignGoal, locale)}
-              className="btn-primary flex items-center gap-2 whitespace-nowrap"
-            >
-              <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Full Report</span>
-              <span className="sm:hidden">XLSX</span>
-            </button>
-          </div>
+          </CollapsibleSection>
+        </div>
+      )}
 
-          {/* Tab Content */}
-          {resultsTab === "data" && (
+      {/* Lead Data */}
+      {hasResults && (
+        <CollapsibleSection
+          title="Lead Data"
+          icon={<Table2 className="h-4 w-4" />}
+          defaultOpen
+          badge={`${leads.length} leads`}
+        >
+          <div className="p-4">
             <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
               <LeadDataGrid leads={leads} campaignGoal={campaignGoal} />
               <FeedbackSidebar
@@ -330,9 +346,18 @@ export default function CampaignWorkspace() {
                 onRemoveExclusion={handleRemoveExclusion}
               />
             </div>
-          )}
+          </div>
+        </CollapsibleSection>
+      )}
 
-          {resultsTab === "keywords" && (
+      {/* Keywords */}
+      {hasResults && (
+        <CollapsibleSection
+          title="Keywords"
+          icon={<Filter className="h-4 w-4" />}
+          badge={`${exclusions.filter((e) => e.active).length} active`}
+        >
+          <div className="p-4">
             <KeywordManager
               leads={leads}
               locale={locale}
@@ -340,25 +365,59 @@ export default function CampaignWorkspace() {
               onAddExclusion={handleAddExclusion}
               onRemoveExclusion={handleRemoveExclusion}
             />
-          )}
+          </div>
+        </CollapsibleSection>
+      )}
 
-          {resultsTab === "icp" && (
+      {/* ICP Framework */}
+      {hasResults && (
+        <CollapsibleSection
+          title="ICP Framework"
+          icon={<Target className="h-4 w-4" />}
+          actions={
+            <button
+              onClick={() => exportICPFramework(leads, campaignGoal, locale)}
+              className="rounded-md p-1 text-gray-400 hover:text-brand-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              title="Export ICP Framework"
+            >
+              <Download className="h-3.5 w-3.5" />
+            </button>
+          }
+        >
+          <div className="p-4">
             <ICPReport
               leads={leads}
               campaignGoal={campaignGoal}
               locale={locale}
               onExport={() => exportICPFramework(leads, campaignGoal, locale)}
             />
-          )}
+          </div>
+        </CollapsibleSection>
+      )}
 
-          {resultsTab === "classification" && (
+      {/* Company Analysis */}
+      {hasResults && (
+        <CollapsibleSection
+          title="Company Analysis"
+          icon={<Building2 className="h-4 w-4" />}
+          actions={
+            <button
+              onClick={() => exportCompanyClassification(leads, locale)}
+              className="rounded-md p-1 text-gray-400 hover:text-brand-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              title="Export Company Analysis"
+            >
+              <Download className="h-3.5 w-3.5" />
+            </button>
+          }
+        >
+          <div className="p-4">
             <CompanyClassificationReport
               leads={leads}
               locale={locale}
               onExport={() => exportCompanyClassification(leads, locale)}
             />
-          )}
-        </>
+          </div>
+        </CollapsibleSection>
       )}
     </div>
   );

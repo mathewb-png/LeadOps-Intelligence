@@ -46,20 +46,12 @@ export default function SearchPromptGenerator({
 
   return (
     <CopyFormatCtx.Provider value={copyFormat}>
-    <div className="card overflow-hidden">
-      {/* Header */}
-      <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950">
-          <Sparkles className="h-5 w-5 text-amber-600" />
-        </div>
-        <div className="flex-1">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-            Search Prompt
-          </h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Copy each field into your lead search tool — {fields.prompt.length}/250 chars
-          </p>
-        </div>
+    <div>
+      {/* Format toggle + prompt char count */}
+      <div className="px-5 py-3 flex items-center justify-between">
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Copy each field into your lead search tool — {fields.prompt.length}/250 chars
+        </p>
         <button
           onClick={() => setCopyFormat((f) => (f === "comma" ? "newline" : "comma"))}
           className="flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
@@ -75,7 +67,7 @@ export default function SearchPromptGenerator({
       </div>
 
       {/* Condensed Prompt */}
-      <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
+      <div className="px-5 pb-4">
         <div className="relative">
           <pre className="whitespace-pre-wrap break-words rounded-lg bg-gray-900 dark:bg-black px-4 py-3 pr-12 text-sm text-emerald-400 font-mono leading-relaxed">
             {fields.prompt}
@@ -85,8 +77,8 @@ export default function SearchPromptGenerator({
       </div>
 
       {/* Live Preview */}
-      <div className="px-6 py-5">
-        <div className="flex items-center gap-2 mb-4">
+      <div className="px-5 pb-5 border-t border-gray-200 dark:border-gray-700 pt-4">
+        <div className="flex items-center gap-2 mb-3">
           <Eye className="h-4 w-4 text-violet-500" />
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Live Preview</h3>
           <span className="text-xs text-gray-400">{totalTags} tags</span>
