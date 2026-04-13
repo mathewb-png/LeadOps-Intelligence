@@ -214,11 +214,11 @@ export default function IntentIntake({ value, onChange, locale, onLocaleChange, 
           {loading ? (
             <>
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              Generating Persona...
+              Launching Campaign...
             </>
           ) : (
             <>
-              Generate Persona <ArrowRight className="h-4 w-4" />
+              Launch Campaign <ArrowRight className="h-4 w-4" />
             </>
           )}
         </button>

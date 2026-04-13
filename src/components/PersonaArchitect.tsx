@@ -1,41 +1,22 @@
-import { Users, Crown, Shield, Eye, Search, Loader2 } from "lucide-react";
+import { Users, Crown, Shield, Eye } from "lucide-react";
 import { PersonaOutput } from "@/types";
 
 interface PersonaArchitectProps {
   persona: PersonaOutput | null;
-  onFetchLeads: () => void;
-  fetchingLeads: boolean;
 }
 
-export default function PersonaArchitect({ persona, onFetchLeads, fetchingLeads }: PersonaArchitectProps) {
+export default function PersonaArchitect({ persona }: PersonaArchitectProps) {
   if (!persona) return null;
 
   return (
     <div className="card overflow-hidden animate-in">
-      <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+      <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-4">
         <div className="flex items-center gap-2">
           <Users className="h-5 w-5 text-brand-600" />
           <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
             Generated Persona
           </h2>
         </div>
-        <button
-          onClick={onFetchLeads}
-          disabled={fetchingLeads}
-          className="btn-primary"
-        >
-          {fetchingLeads ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Fetching Leads...
-            </>
-          ) : (
-            <>
-              <Search className="h-4 w-4" />
-              Fetch Leads from Apollo
-            </>
-          )}
-        </button>
       </div>
 
       <div className="p-6 grid gap-5 md:grid-cols-2">

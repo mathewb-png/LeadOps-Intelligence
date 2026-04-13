@@ -1,10 +1,12 @@
 import { PersonaOutput, CampaignLocale, Lead } from "@/types";
+import { ICP_EXCLUDE_KEYWORDS, LOCALIZED_EXCLUDE_KEYWORDS } from "@/lib/richardScoring";
 
 export interface SearchPromptFields {
-  jobTitles: string[];
-  excludeTitles: string[];
-  locations: string[];
+  companyJobTitle: string;
+  personTitles: string[];
+  personLocations: string[];
   companyKeywords: string[];
+  excludeTitles: string[];
   seniority: string[];
   prompt: string;
 }
@@ -37,9 +39,6 @@ function detectSeniority(titles: string[]): string[] {
 function extractLocations(locale: CampaignLocale, leads?: Lead[]): string[] {
   const locs: string[] = [];
 
-  if (locale.region) locs.push(locale.region);
-  if (locale.country && locale.country !== "Global") locs.push(locale.country);
-
   if (leads && leads.length > 0) {
     const locCounts = new Map<string, number>();
     for (const lead of leads) {
@@ -52,7 +51,7 @@ function extractLocations(locale: CampaignLocale, leads?: Lead[]): string[] {
     }
     const sorted = Array.from(locCounts.entries())
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 6)
+      .slice(0, 10)
       .map(([loc]) => loc);
 
     for (const loc of sorted) {
@@ -62,7 +61,17 @@ function extractLocations(locale: CampaignLocale, leads?: Lead[]): string[] {
     }
   }
 
-  return locs.slice(0, 8);
+  if (locale.region && !locs.some((l) => l.toLowerCase() === locale.region!.toLowerCase())) {
+    locs.push(locale.region);
+  }
+  if (locale.country && locale.country !== "Global" && !locs.some((l) => l.toLowerCase() === locale.country.toLowerCase())) {
+    locs.push(locale.country);
+  }
+  if (locale.countryCode && locale.countryCode !== "GLOBAL" && !locs.some((l) => l.toLowerCase() === locale.countryCode.toLowerCase())) {
+    locs.push(locale.countryCode.toLowerCase());
+  }
+
+  return locs.slice(0, 12);
 }
 
 function extractIndustryKeywords(campaignGoal: string, persona: PersonaOutput): string[] {
@@ -77,7 +86,14 @@ function extractIndustryKeywords(campaignGoal: string, persona: PersonaOutput): 
   const stopWords = new Set([
     "that", "this", "with", "from", "have", "been", "will", "want", "need",
     "find", "looking", "search", "leads", "people", "companies", "build",
-    "list", "target", "campaign", "make", "create",
+    "list", "target", "campaign", "make", "create", "would", "like", "also",
+    "could", "should", "please", "help", "think", "know", "about", "some",
+    "more", "than", "very", "just", "into", "them", "then", "there", "their",
+    "they", "what", "when", "where", "which", "while", "your", "each",
+    "every", "other", "such", "only", "does", "doing", "done", "being",
+    "were", "went", "discussed", "yesterday", "today", "tomorrow", "recently",
+    "currently", "already", "here", "these", "those", "well", "much", "many",
+    "most", "best", "good", "work", "working", "using", "used", "across",
   ]);
 
   for (const word of goalWords) {
@@ -92,7 +108,33 @@ function extractIndustryKeywords(campaignGoal: string, persona: PersonaOutput): 
   return [...new Set(keywords)].slice(0, 10);
 }
 
+function deriveCompanyJobTitle(campaignGoal: string, persona: PersonaOutput): string {
+  const goal = campaignGoal.trim().toLowerCase();
+
+  const leadTypePatterns = [
+    /(?:find|get|build|generate|create|search)\s+(.+?)\s+(?:leads?|contacts?|list)/i,
+    /(.+?)\s+(?:leads?|contacts?|prospects?)/i,
+  ];
+
+  for (const pattern of leadTypePatterns) {
+    const match = campaignGoal.match(pattern);
+    if (match && match[1]) {
+      const extracted = match[1].replace(/^(?:me|us|a|an|the)\s+/i, "").trim();
+      if (extracted.length > 2 && extracted.length < 60) return extracted;
+    }
+  }
+
+  if (persona.industryKeywords.length > 0) {
+    return persona.industryKeywords.slice(0, 3).join(" ") + " leads";
+  }
+
+  if (goal.length > 0 && goal.length <= 50) return campaignGoal.trim();
+
+  return "target leads";
+}
+
 function buildCondensedPrompt(
+  companyJobTitle: string,
   keywords: string[],
   locations: string[],
   titles: string[],
@@ -104,7 +146,7 @@ function buildCondensedPrompt(
   const locPart = locations.slice(0, 4).join(", ");
   const titlePart = titles.slice(0, 6).join(", ");
 
-  let prompt = `build list: ${kwPart}`;
+  let prompt = `build ${companyJobTitle} list: ${kwPart}`;
   if (locPart) prompt += ` in ${locPart}`;
   prompt += `. target: ${titlePart}`;
 
@@ -123,6 +165,15 @@ function buildCondensedPrompt(
   return prompt;
 }
 
+function mergeExcludes(activeExclusions: string[], languageCode: string): string[] {
+  const set = new Set<string>();
+  for (const w of ICP_EXCLUDE_KEYWORDS) set.add(w);
+  const localized = LOCALIZED_EXCLUDE_KEYWORDS[languageCode] || [];
+  for (const w of localized) set.add(w);
+  for (const w of activeExclusions) set.add(w);
+  return Array.from(set);
+}
+
 export function buildSearchPrompt(
   campaignGoal: string,
   persona: PersonaOutput,
@@ -130,19 +181,21 @@ export function buildSearchPrompt(
   exclusions: string[],
   leads?: Lead[]
 ): SearchPromptFields {
-  const jobTitles = [...persona.tier1Titles, ...persona.tier2Titles].slice(0, 15);
+  const personTitles = [...persona.tier1Titles, ...persona.tier2Titles].slice(0, 15);
   const companyKeywords = extractIndustryKeywords(campaignGoal, persona);
-  const locations = extractLocations(locale, leads);
-  const seniority = detectSeniority(jobTitles);
-  const excludeTitles = exclusions.slice(0, 10);
+  const personLocations = extractLocations(locale, leads);
+  const seniority = detectSeniority(personTitles);
+  const excludeTitles = mergeExcludes(exclusions, locale.languageCode);
+  const companyJobTitle = deriveCompanyJobTitle(campaignGoal, persona);
 
-  const prompt = buildCondensedPrompt(companyKeywords, locations, jobTitles, excludeTitles);
+  const prompt = buildCondensedPrompt(companyJobTitle, companyKeywords, personLocations, personTitles, excludeTitles);
 
   return {
-    jobTitles,
-    excludeTitles,
-    locations,
+    companyJobTitle,
+    personTitles,
+    personLocations,
     companyKeywords,
+    excludeTitles,
     seniority,
     prompt,
   };

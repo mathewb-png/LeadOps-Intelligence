@@ -7,6 +7,8 @@ import {
   AlertTriangle,
   Globe,
   Search,
+  Copy,
+  Check,
 } from "lucide-react";
 import { Lead, ExclusionWord, CampaignLocale } from "@/types";
 import {
@@ -66,6 +68,7 @@ export default function KeywordManager({
             <h3 className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
               Include Titles
             </h3>
+            <CopyListButton items={filteredInclude} />
             <span className="ml-auto text-xs text-emerald-600/70 dark:text-emerald-400/70">
               {filteredInclude.length} titles
             </span>
@@ -92,6 +95,7 @@ export default function KeywordManager({
             <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-300">
               Target Industries
             </h3>
+            <CopyListButton items={filteredIndustries} />
             <span className="ml-auto text-xs text-blue-600/70 dark:text-blue-400/70">
               {filteredIndustries.length} industries
             </span>
@@ -118,6 +122,7 @@ export default function KeywordManager({
             <h3 className="text-sm font-semibold text-red-800 dark:text-red-300">
               Exclude Keywords — English
             </h3>
+            <CopyListButton items={filteredExcludeEn} />
             <span className="ml-auto text-xs text-red-500/70 dark:text-red-400/70">
               {filteredExcludeEn.length} keywords
             </span>
@@ -144,6 +149,7 @@ export default function KeywordManager({
             <h3 className="text-sm font-semibold text-orange-800 dark:text-orange-300">
               Exclude Keywords — {locale.language}
             </h3>
+            <CopyListButton items={filteredExcludeLocal} />
             <span className="ml-auto text-xs text-orange-500/70 dark:text-orange-400/70">
               {filteredExcludeLocal.length} keywords
             </span>
@@ -207,6 +213,7 @@ export default function KeywordManager({
           <h3 className="text-sm font-semibold text-violet-800 dark:text-violet-300">
             Active Exclusions
           </h3>
+          <CopyListButton items={exclusions.filter((e) => e.active).map((e) => e.word)} />
           <span className="ml-auto text-xs text-violet-600/70 dark:text-violet-400/70">
             {exclusions.filter((e) => e.active).length} active
           </span>
@@ -239,5 +246,32 @@ export default function KeywordManager({
         </div>
       </div>
     </div>
+  );
+}
+
+function CopyListButton({ items }: { items: string[] }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (items.length === 0) return;
+    await navigator.clipboard.writeText(items.join("\n"));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (items.length === 0) return null;
+
+  return (
+    <button
+      onClick={handleCopy}
+      className={`rounded-md p-1 transition-colors ${
+        copied
+          ? "bg-emerald-100 dark:bg-emerald-900 text-emerald-600"
+          : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+      }`}
+      title={copied ? "Copied!" : `Copy all ${items.length} items`}
+    >
+      {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+    </button>
   );
 }

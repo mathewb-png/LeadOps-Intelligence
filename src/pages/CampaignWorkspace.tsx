@@ -173,46 +173,41 @@ export default function CampaignWorkspace() {
     setShowUploader(false);
   }, [locale, runEnrichment]);
 
-  const handleGeneratePersona = useCallback(async () => {
+  const handleLaunchCampaign = useCallback(async () => {
     setGeneratingPersona(true);
     try {
       const result = await generatePersonaWithAI(campaignGoal);
       setPersona(result);
       setLeads([]);
       setEnrichmentProgress(null);
+
+      // Auto-save after persona
+      saveCampaign();
+
+      // Auto-chain: fetch leads immediately
+      setFetchingLeads(true);
+      try {
+        const allTitles = [...result.tier1Titles, ...result.tier2Titles, ...result.tier3Titles];
+        const activeExclusions = exclusions.filter((e) => e.active).map((e) => e.word);
+        const fetched = await fetchApolloData({
+          personaTitles: allTitles,
+          industryKeywords: result.industryKeywords,
+          excludedWords: activeExclusions,
+          locale,
+        });
+        setLeads(fetched);
+        setTimeout(() => {
+          enrichmentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 100);
+        await runEnrichment(fetched, locale);
+        saveCampaign();
+      } finally {
+        setFetchingLeads(false);
+      }
     } finally {
       setGeneratingPersona(false);
     }
-  }, [campaignGoal]);
-
-  // Auto-save after persona generation
-  useEffect(() => {
-    if (persona && campaignGoal.trim()) saveCampaign();
-  }, [persona]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleFetchLeads = useCallback(async () => {
-    if (!persona) return;
-    setFetchingLeads(true);
-    try {
-      const allTitles = [...persona.tier1Titles, ...persona.tier2Titles, ...persona.tier3Titles];
-      const activeExclusions = exclusions.filter((e) => e.active).map((e) => e.word);
-      const fetched = await fetchApolloData({
-        personaTitles: allTitles,
-        industryKeywords: persona.industryKeywords,
-        excludedWords: activeExclusions,
-        locale,
-      });
-      setLeads(fetched);
-      // Scroll to enrichment progress
-      setTimeout(() => {
-        enrichmentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 100);
-      await runEnrichment(fetched, locale);
-      saveCampaign();
-    } finally {
-      setFetchingLeads(false);
-    }
-  }, [persona, exclusions, locale, runEnrichment, saveCampaign]);
+  }, [campaignGoal, exclusions, locale, runEnrichment, saveCampaign]);
 
   const handleAddExclusion = useCallback(async (word: string, fromTitles: string[]) => {
     await addExclusion(word, fromTitles);
@@ -268,14 +263,12 @@ export default function CampaignWorkspace() {
         onChange={setCampaignGoal}
         locale={locale}
         onLocaleChange={setLocale}
-        onSubmit={handleGeneratePersona}
-        loading={generatingPersona}
+        onSubmit={handleLaunchCampaign}
+        loading={generatingPersona || fetchingLeads}
       />
 
       <PersonaArchitect
         persona={persona}
-        onFetchLeads={handleFetchLeads}
-        fetchingLeads={fetchingLeads}
       />
 
       {persona && (

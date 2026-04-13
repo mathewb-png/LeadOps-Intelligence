@@ -1,16 +1,21 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, createContext, useContext } from "react";
 import {
   Sparkles,
   Copy,
   Check,
-  MapPin,
-  Briefcase,
-  XCircle,
-  Building2,
-  Users,
+  Eye,
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
 import { PersonaOutput, CampaignLocale, ExclusionWord, Lead } from "@/types";
 import { buildSearchPrompt, SearchPromptFields } from "@/lib/buildSearchPrompt";
+
+type CopyFormat = "comma" | "newline";
+const CopyFormatCtx = createContext<CopyFormat>("comma");
+
+function joinItems(items: string[], format: CopyFormat): string {
+  return format === "comma" ? items.join(", ") : items.join("\n");
+}
 
 interface SearchPromptGeneratorProps {
   campaignGoal: string;
@@ -28,14 +33,21 @@ export default function SearchPromptGenerator({
   leads,
 }: SearchPromptGeneratorProps) {
   const activeExclusions = exclusions.filter((e) => e.active).map((e) => e.word);
+  const [copyFormat, setCopyFormat] = useState<CopyFormat>("comma");
 
   const fields: SearchPromptFields = useMemo(
     () => buildSearchPrompt(campaignGoal, persona, locale, activeExclusions, leads.length > 0 ? leads : undefined),
     [campaignGoal, persona, locale, activeExclusions, leads]
   );
 
+  const totalTags =
+    1 + fields.personTitles.length + fields.personLocations.length +
+    fields.companyKeywords.length + fields.excludeTitles.length;
+
   return (
+    <CopyFormatCtx.Provider value={copyFormat}>
     <div className="card overflow-hidden">
+      {/* Header */}
       <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center gap-3">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950">
           <Sparkles className="h-5 w-5 text-amber-600" />
@@ -45,9 +57,21 @@ export default function SearchPromptGenerator({
             Search Prompt
           </h2>
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Copy this into your lead search tool — {fields.prompt.length}/250 chars
+            Copy each field into your lead search tool — {fields.prompt.length}/250 chars
           </p>
         </div>
+        <button
+          onClick={() => setCopyFormat((f) => (f === "comma" ? "newline" : "comma"))}
+          className="flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          title={`Copy format: ${copyFormat === "comma" ? "comma-separated" : "one per line"}`}
+        >
+          {copyFormat === "comma" ? (
+            <ToggleRight className="h-4 w-4 text-brand-600" />
+          ) : (
+            <ToggleLeft className="h-4 w-4 text-gray-400" />
+          )}
+          {copyFormat === "comma" ? "Comma" : "Lines"}
+        </button>
       </div>
 
       {/* Condensed Prompt */}
@@ -60,115 +84,71 @@ export default function SearchPromptGenerator({
         </div>
       </div>
 
-      {/* Structured Fields */}
-      <div className="px-6 py-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <FieldCard
-          icon={<Briefcase className="h-3.5 w-3.5" />}
-          label="Job Titles"
-          items={fields.jobTitles}
-          color="brand"
-        />
-        <FieldCard
-          icon={<MapPin className="h-3.5 w-3.5" />}
-          label="Locations"
-          items={fields.locations}
-          color="blue"
-        />
-        <FieldCard
-          icon={<Building2 className="h-3.5 w-3.5" />}
-          label="Company Keywords"
-          items={fields.companyKeywords}
-          color="emerald"
-        />
-        <FieldCard
-          icon={<Users className="h-3.5 w-3.5" />}
-          label="Seniority"
-          items={fields.seniority}
-          color="violet"
-        />
-        <FieldCard
-          icon={<XCircle className="h-3.5 w-3.5" />}
-          label="Exclude Titles"
-          items={fields.excludeTitles}
-          color="red"
-        />
+      {/* Live Preview */}
+      <div className="px-6 py-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Eye className="h-4 w-4 text-violet-500" />
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Live Preview</h3>
+          <span className="text-xs text-gray-400">{totalTags} tags</span>
+        </div>
+
+        <div className="space-y-2.5">
+          <PreviewRow label="Company Job Title" items={[fields.companyJobTitle]} color="violet" />
+          <PreviewRow label="Person Titles" items={fields.personTitles} color="violet" />
+          <PreviewRow label="Person Locations" items={fields.personLocations} color="violet" />
+          <PreviewRow label="Company Keywords" items={fields.companyKeywords} color="violet" />
+          <PreviewRow label="Exclude Titles" items={fields.excludeTitles} color="red" />
+        </div>
       </div>
     </div>
+    </CopyFormatCtx.Provider>
   );
 }
 
-const COLOR_MAP: Record<string, { tag: string; header: string }> = {
-  brand: {
-    tag: "bg-brand-50 dark:bg-brand-950 text-brand-700 dark:text-brand-300 ring-brand-200 dark:ring-brand-800",
-    header: "text-brand-700 dark:text-brand-300",
-  },
-  blue: {
-    tag: "bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 ring-blue-200 dark:ring-blue-800",
-    header: "text-blue-700 dark:text-blue-300",
-  },
-  emerald: {
-    tag: "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 ring-emerald-200 dark:ring-emerald-800",
-    header: "text-emerald-700 dark:text-emerald-300",
-  },
-  violet: {
-    tag: "bg-violet-50 dark:bg-violet-950 text-violet-700 dark:text-violet-300 ring-violet-200 dark:ring-violet-800",
-    header: "text-violet-700 dark:text-violet-300",
-  },
-  red: {
-    tag: "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 ring-red-200 dark:ring-red-800",
-    header: "text-red-700 dark:text-red-300",
-  },
-};
+/* ── Live Preview Row ── */
 
-function FieldCard({
-  icon,
+function PreviewRow({
   label,
   items,
   color,
 }: {
-  icon: React.ReactNode;
   label: string;
   items: string[];
-  color: string;
+  color: "violet" | "red";
 }) {
-  const colors = COLOR_MAP[color] || COLOR_MAP.brand;
-  const copyText = items.join(", ");
+  if (items.length === 0) return null;
 
-  if (items.length === 0) {
-    return (
-      <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
-        <div className="flex items-center justify-between mb-2">
-          <span className={`flex items-center gap-1.5 text-xs font-semibold ${colors.header}`}>
-            {icon} {label}
-          </span>
-        </div>
-        <p className="text-[11px] text-gray-400">None</p>
-      </div>
-    );
-  }
+  const borderColor = color === "red"
+    ? "border-red-200 dark:border-red-800/50 bg-red-50/30 dark:bg-red-950/20"
+    : "border-violet-200 dark:border-violet-800/50 bg-violet-50/30 dark:bg-violet-950/20";
+  const tagColor = color === "red"
+    ? "bg-red-100 dark:bg-red-900/60 text-red-700 dark:text-red-300"
+    : "bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300";
+  const labelColor = color === "red"
+    ? "text-red-600 dark:text-red-400"
+    : "text-violet-600 dark:text-violet-400";
+
+  const fmt = useContext(CopyFormatCtx);
+  const copyText = joinItems(items, fmt);
 
   return (
-    <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
-      <div className="flex items-center justify-between mb-2">
-        <span className={`flex items-center gap-1.5 text-xs font-semibold ${colors.header}`}>
-          {icon} {label}
-          <span className="text-[10px] font-normal text-gray-400">({items.length})</span>
+    <div className={`flex flex-wrap items-center gap-1.5 rounded-lg border px-3 py-2 ${borderColor}`}>
+      <span className={`text-[11px] font-semibold mr-1 shrink-0 ${labelColor}`}>{label}:</span>
+      {items.map((item) => (
+        <span
+          key={item}
+          className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ${tagColor}`}
+        >
+          {item}
+          <span className="text-[9px] opacity-40">×</span>
         </span>
-        <CopyButton text={copyText} size="sm" />
-      </div>
-      <div className="flex flex-wrap gap-1">
-        {items.map((item) => (
-          <span
-            key={item}
-            className={`rounded-md px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset ${colors.tag}`}
-          >
-            {item}
-          </span>
-        ))}
-      </div>
+      ))}
+      <CopyButton text={copyText} size="sm" className="ml-auto shrink-0" />
     </div>
   );
 }
+
+/* ── Copy Button ── */
 
 function CopyButton({
   text,
