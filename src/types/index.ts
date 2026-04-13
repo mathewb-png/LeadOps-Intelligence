@@ -408,6 +408,19 @@ export type EmailVariable =
   | "{{tier}}"
   | "{{campaignGoal}}";
 
+// ─── Saved Campaigns ───
+
+export interface SavedCampaign {
+  id: string;
+  name: string;
+  campaignGoal: string;
+  locale: CampaignLocale;
+  persona: PersonaOutput | null;
+  leadCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ─── Aggregated Pipeline Status ───
 
 export interface PipelineStatus {

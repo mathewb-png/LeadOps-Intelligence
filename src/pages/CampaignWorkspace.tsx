@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef } from "react";
-import { Lead, PersonaOutput, ExclusionWord, CampaignLocale } from "@/types";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { Lead, PersonaOutput, ExclusionWord, CampaignLocale, SavedCampaign } from "@/types";
 import IntentIntake from "@/components/IntentIntake";
 import PersonaArchitect from "@/components/PersonaArchitect";
 import LeadDataGrid from "@/components/LeadDataGrid";
@@ -9,6 +9,8 @@ import LeadUploader from "@/components/LeadUploader";
 import ICPReport from "@/components/ICPReport";
 import CompanyClassificationReport from "@/components/CompanyClassificationReport";
 import KeywordManager from "@/components/KeywordManager";
+import CampaignHistory from "@/components/CampaignHistory";
+import SearchPromptGenerator from "@/components/SearchPromptGenerator";
 import { generatePersonaWithAI } from "@/services/analyzeLeadsWithAI";
 import { fetchApolloData } from "@/services/fetchApolloData";
 import { runFullEnrichment, EnrichmentProgress as EnrichmentProgressType } from "@/services/enrichmentPipeline";
@@ -28,6 +30,28 @@ import {
   Filter,
 } from "lucide-react";
 
+const CAMPAIGNS_KEY = "leadops-campaigns";
+
+function loadCampaigns(): SavedCampaign[] {
+  try {
+    const raw = localStorage.getItem(CAMPAIGNS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistCampaigns(campaigns: SavedCampaign[]) {
+  localStorage.setItem(CAMPAIGNS_KEY, JSON.stringify(campaigns));
+}
+
+function deriveName(goal: string): string {
+  if (!goal.trim()) return "Untitled Campaign";
+  const cleaned = goal.replace(/[^a-zA-Z0-9\s]/g, "").trim();
+  const words = cleaned.split(/\s+/).slice(0, 5);
+  return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
+}
+
 type ResultsTab = "data" | "icp" | "classification" | "keywords";
 
 export default function CampaignWorkspace() {
@@ -46,6 +70,69 @@ export default function CampaignWorkspace() {
   const [showUploader, setShowUploader] = useState(false);
   const [resultsTab, setResultsTab] = useState<ResultsTab>("data");
   const enrichAbort = useRef(false);
+
+  const enrichmentRef = useRef<HTMLDivElement>(null);
+  const [campaigns, setCampaigns] = useState<SavedCampaign[]>(loadCampaigns);
+  const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
+
+  const saveCampaign = useCallback(() => {
+    if (!campaignGoal.trim() && !persona) return;
+    setCampaigns((prev) => {
+      const now = new Date().toISOString();
+      let updated: SavedCampaign[];
+      if (activeCampaignId) {
+        updated = prev.map((c) =>
+          c.id === activeCampaignId
+            ? { ...c, name: deriveName(campaignGoal), campaignGoal, locale, persona, leadCount: leads.length, updatedAt: now }
+            : c
+        );
+      } else {
+        const id = crypto.randomUUID();
+        const newCampaign: SavedCampaign = {
+          id,
+          name: deriveName(campaignGoal),
+          campaignGoal,
+          locale,
+          persona,
+          leadCount: leads.length,
+          createdAt: now,
+          updatedAt: now,
+        };
+        updated = [newCampaign, ...prev];
+        setActiveCampaignId(id);
+      }
+      persistCampaigns(updated);
+      return updated;
+    });
+  }, [campaignGoal, locale, persona, leads.length, activeCampaignId]);
+
+  const handleRestoreCampaign = useCallback((campaign: SavedCampaign) => {
+    setCampaignGoal(campaign.campaignGoal);
+    setLocale(campaign.locale);
+    setPersona(campaign.persona);
+    setLeads([]);
+    setEnrichmentProgress(null);
+    setActiveCampaignId(campaign.id);
+  }, []);
+
+  const handleDeleteCampaign = useCallback((id: string) => {
+    setCampaigns((prev) => {
+      const updated = prev.filter((c) => c.id !== id);
+      persistCampaigns(updated);
+      return updated;
+    });
+    if (activeCampaignId === id) setActiveCampaignId(null);
+  }, [activeCampaignId]);
+
+  const handleNewCampaign = useCallback(() => {
+    saveCampaign();
+    setCampaignGoal("");
+    setLocale(getDefaultLocale());
+    setPersona(null);
+    setLeads([]);
+    setEnrichmentProgress(null);
+    setActiveCampaignId(null);
+  }, [saveCampaign]);
 
   const runEnrichment = useCallback(async (rawLeads: Lead[], loc: CampaignLocale) => {
     setEnriching(true);
@@ -98,6 +185,11 @@ export default function CampaignWorkspace() {
     }
   }, [campaignGoal]);
 
+  // Auto-save after persona generation
+  useEffect(() => {
+    if (persona && campaignGoal.trim()) saveCampaign();
+  }, [persona]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleFetchLeads = useCallback(async () => {
     if (!persona) return;
     setFetchingLeads(true);
@@ -111,12 +203,16 @@ export default function CampaignWorkspace() {
         locale,
       });
       setLeads(fetched);
-      // Auto-enrich right after fetch
+      // Scroll to enrichment progress
+      setTimeout(() => {
+        enrichmentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
       await runEnrichment(fetched, locale);
+      saveCampaign();
     } finally {
       setFetchingLeads(false);
     }
-  }, [persona, exclusions, locale, runEnrichment]);
+  }, [persona, exclusions, locale, runEnrichment, saveCampaign]);
 
   const handleAddExclusion = useCallback(async (word: string, fromTitles: string[]) => {
     await addExclusion(word, fromTitles);
@@ -157,6 +253,14 @@ export default function CampaignWorkspace() {
         </button>
       </div>
 
+      <CampaignHistory
+        campaigns={campaigns}
+        activeCampaignId={activeCampaignId}
+        onRestore={handleRestoreCampaign}
+        onDelete={handleDeleteCampaign}
+        onNewCampaign={handleNewCampaign}
+      />
+
       {showUploader && <LeadUploader onLeadsImported={handleLeadsImported} languageCode={locale.languageCode} />}
 
       <IntentIntake
@@ -174,14 +278,25 @@ export default function CampaignWorkspace() {
         fetchingLeads={fetchingLeads}
       />
 
+      {persona && (
+        <SearchPromptGenerator
+          campaignGoal={campaignGoal}
+          persona={persona}
+          locale={locale}
+          exclusions={exclusions}
+          leads={leads}
+        />
+      )}
+
       {leads.length > 0 && (
         <>
-          {/* Enrichment Progress replaces old Pipeline Actions */}
-          <EnrichmentProgress
-            progress={enrichmentProgress}
-            isRunning={enriching}
-            leadCount={leads.length}
-          />
+          <div ref={enrichmentRef}>
+            <EnrichmentProgress
+              progress={enrichmentProgress}
+              isRunning={enriching}
+              leadCount={leads.length}
+            />
+          </div>
 
           {/* Results Tab Navigation + Unified Export */}
           <div className="flex items-center gap-3">
