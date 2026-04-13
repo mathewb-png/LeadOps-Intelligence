@@ -11,7 +11,7 @@ import CompanyClassificationReport from "@/components/CompanyClassificationRepor
 import { generatePersonaWithAI } from "@/services/analyzeLeadsWithAI";
 import { fetchApolloData } from "@/services/fetchApolloData";
 import { runFullEnrichment, EnrichmentProgress as EnrichmentProgressType } from "@/services/enrichmentPipeline";
-import { exportICPFramework, exportCompanyClassification } from "@/lib/exportXlsx";
+import { exportFullReport, exportICPFramework, exportCompanyClassification } from "@/lib/exportXlsx";
 import { getDefaultLocale, detectLocaleFromLeads } from "@/lib/localeData";
 import {
   addExclusion,
@@ -23,6 +23,7 @@ import {
   Building2,
   Table2,
   FileSpreadsheet,
+  Download,
 } from "lucide-react";
 
 type ResultsTab = "data" | "icp" | "classification";
@@ -179,22 +180,32 @@ export default function CampaignWorkspace() {
             leadCount={leads.length}
           />
 
-          {/* Results Tab Navigation */}
-          <div className="flex items-center gap-1 rounded-xl bg-gray-100 dark:bg-gray-800 p-1">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setResultsTab(tab.id)}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
-                  resultsTab === tab.id
-                    ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm"
-                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-                }`}
-              >
-                {tab.icon}
-                <span className="hidden sm:inline">{tab.label}</span>
-              </button>
-            ))}
+          {/* Results Tab Navigation + Unified Export */}
+          <div className="flex items-center gap-3">
+            <div className="flex flex-1 items-center gap-1 rounded-xl bg-gray-100 dark:bg-gray-800 p-1">
+              {TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setResultsTab(tab.id)}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
+                    resultsTab === tab.id
+                      ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                  }`}
+                >
+                  {tab.icon}
+                  <span className="hidden sm:inline">{tab.label}</span>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => exportFullReport(leads, campaignGoal, locale)}
+              className="btn-primary flex items-center gap-2 whitespace-nowrap"
+            >
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Full Report</span>
+              <span className="sm:hidden">XLSX</span>
+            </button>
           </div>
 
           {/* Tab Content */}
