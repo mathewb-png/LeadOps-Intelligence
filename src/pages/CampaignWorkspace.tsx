@@ -7,6 +7,8 @@ import FeedbackSidebar from "@/components/FeedbackSidebar";
 import PipelineActionBar from "@/components/PipelineActionBar";
 import LeadUploader from "@/components/LeadUploader";
 import EmailTemplateEditor from "@/components/EmailTemplateEditor";
+import ICPReport from "@/components/ICPReport";
+import CompanyClassificationReport from "@/components/CompanyClassificationReport";
 import { generatePersonaWithAI } from "@/services/analyzeLeadsWithAI";
 import { fetchApolloData } from "@/services/fetchApolloData";
 import { enrichCompany } from "@/services/clearbitService";
@@ -16,11 +18,19 @@ import { syncBatchToCRM } from "@/services/hubspotService";
 import { addBatchToCampaign } from "@/services/instantlyService";
 import { sendBatchSummary } from "@/services/slackService";
 import { scoreLeadsWithGroq } from "@/services/groqService";
+import { exportICPFramework, exportCompanyClassification } from "@/lib/exportXlsx";
 import {
   addExclusion,
   removeExclusion,
   fetchActiveExclusions,
 } from "@/services/updateExclusionLogic";
+import {
+  Target,
+  Building2,
+  Table2,
+  Mail,
+  FileSpreadsheet,
+} from "lucide-react";
 
 const INITIAL_PIPELINE: PipelineStatus = {
   enrichment: { status: "idle", enrichedCount: 0 },
@@ -29,6 +39,8 @@ const INITIAL_PIPELINE: PipelineStatus = {
   outreach: { status: "idle", campaign: null },
   slackNotified: false,
 };
+
+type ResultsTab = "data" | "icp" | "classification" | "email";
 
 export default function CampaignWorkspace() {
   const [campaignGoal, setCampaignGoal] = useState("");
@@ -42,6 +54,7 @@ export default function CampaignWorkspace() {
   const [fetchingLeads, setFetchingLeads] = useState(false);
   const [pipeline, setPipeline] = useState<PipelineStatus>(INITIAL_PIPELINE);
   const [showUploader, setShowUploader] = useState(false);
+  const [resultsTab, setResultsTab] = useState<ResultsTab>("data");
 
   const handleLeadsImported = useCallback((imported: Lead[]) => {
     setLeads((prev) => {
@@ -200,6 +213,13 @@ export default function CampaignWorkspace() {
     [handleStartOutreach]
   );
 
+  const TABS: { id: ResultsTab; label: string; icon: React.ReactNode }[] = [
+    { id: "data", label: "Lead Data", icon: <Table2 className="h-4 w-4" /> },
+    { id: "icp", label: "ICP Framework", icon: <Target className="h-4 w-4" /> },
+    { id: "classification", label: "Company Analysis", icon: <Building2 className="h-4 w-4" /> },
+    { id: "email", label: "Email Outreach", icon: <Mail className="h-4 w-4" /> },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -208,13 +228,14 @@ export default function CampaignWorkspace() {
             Campaign Workspace
           </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Define your campaign, import or fetch leads, score, enrich, write emails, and launch outreach.
+            Define your campaign, import leads, score, classify companies, and launch outreach.
           </p>
         </div>
         <button
           onClick={() => setShowUploader(!showUploader)}
-          className={showUploader ? "btn-secondary" : "btn-primary"}
+          className={`${showUploader ? "btn-secondary" : "btn-primary"} flex items-center gap-2`}
         >
+          <FileSpreadsheet className="h-4 w-4" />
           {showUploader ? "Hide Uploader" : "Upload Excel / CSV"}
         </button>
       </div>
@@ -247,21 +268,59 @@ export default function CampaignWorkspace() {
             onScoreWithGroq={handleScoreWithGroq}
           />
 
-          <EmailTemplateEditor
-            leads={leads}
-            campaignGoal={campaignGoal}
-            onSendOutreach={handleSendOutreach}
-          />
-
-          <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
-            <LeadDataGrid leads={leads} campaignGoal={campaignGoal} />
-            <FeedbackSidebar
-              leads={leads}
-              exclusions={exclusions}
-              onAddExclusion={handleAddExclusion}
-              onRemoveExclusion={handleRemoveExclusion}
-            />
+          {/* Results Tab Navigation */}
+          <div className="flex items-center gap-1 rounded-xl bg-gray-100 dark:bg-gray-800 p-1">
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setResultsTab(tab.id)}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
+                  resultsTab === tab.id
+                    ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm"
+                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                }`}
+              >
+                {tab.icon}
+                <span className="hidden sm:inline">{tab.label}</span>
+              </button>
+            ))}
           </div>
+
+          {/* Tab Content */}
+          {resultsTab === "data" && (
+            <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
+              <LeadDataGrid leads={leads} campaignGoal={campaignGoal} />
+              <FeedbackSidebar
+                leads={leads}
+                exclusions={exclusions}
+                onAddExclusion={handleAddExclusion}
+                onRemoveExclusion={handleRemoveExclusion}
+              />
+            </div>
+          )}
+
+          {resultsTab === "icp" && (
+            <ICPReport
+              leads={leads}
+              campaignGoal={campaignGoal}
+              onExport={() => exportICPFramework(leads, campaignGoal)}
+            />
+          )}
+
+          {resultsTab === "classification" && (
+            <CompanyClassificationReport
+              leads={leads}
+              onExport={() => exportCompanyClassification(leads)}
+            />
+          )}
+
+          {resultsTab === "email" && (
+            <EmailTemplateEditor
+              leads={leads}
+              campaignGoal={campaignGoal}
+              onSendOutreach={handleSendOutreach}
+            />
+          )}
         </>
       )}
     </div>

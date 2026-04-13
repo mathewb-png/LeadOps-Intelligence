@@ -1,81 +1,234 @@
 import { Lead, LeadTier, BatchValueBreakdown, RefinementSuggestion } from "@/types";
 
-const PRIMARY_KEYWORDS = [
-  "head of seo", "seo lead", "seo director", "seo manager",
-  "head of growth", "growth lead", "vp growth", "director of growth",
-  "head of marketing", "marketing director", "vp marketing", "cmo",
-  "head of finops", "finops lead", "finops director", "finops manager",
-  "cloud cost", "cloud economics",
+// ─── Full ICP Scoring Rules (from Richard's framework) ─────────────────────
+
+export interface ScoringRule {
+  trigger: string;
+  score: number;
+  reason: string;
+}
+
+export const SCORING_RULES: ScoringRule[] = [
+  { trigger: "chief marketing officer", score: 10, reason: "Direct marketing owner" },
+  { trigger: "cmo", score: 10, reason: "Direct marketing owner" },
+  { trigger: "chief growth officer", score: 10, reason: "Executive growth owner" },
+  { trigger: "cgo", score: 10, reason: "Executive growth owner" },
+  { trigger: "chief revenue officer", score: 10, reason: "CRO marketing ownership" },
+  { trigger: "vp marketing", score: 10, reason: "Direct marketing owner" },
+  { trigger: "svp marketing", score: 10, reason: "SVP Marketing keyword" },
+  { trigger: "global vp marketing", score: 10, reason: "Global Marketing leadership" },
+  { trigger: "director of marketing", score: 10, reason: "Direct marketing owner" },
+  { trigger: "director marketing", score: 10, reason: "Marketing leadership" },
+  { trigger: "head of marketing", score: 10, reason: "Direct marketing owner" },
+  { trigger: "head marketing", score: 10, reason: "Marketing leadership" },
+  { trigger: "vp growth", score: 10, reason: "Direct growth owner" },
+  { trigger: "director of growth", score: 10, reason: "Direct growth owner" },
+  { trigger: "director growth", score: 10, reason: "Growth ownership" },
+  { trigger: "head of growth", score: 10, reason: "Direct growth owner" },
+  { trigger: "head growth", score: 10, reason: "Growth ownership" },
+  { trigger: "vp seo", score: 10, reason: "Direct SEO owner" },
+  { trigger: "director of seo", score: 10, reason: "Direct SEO owner" },
+  { trigger: "director seo", score: 10, reason: "SEO ownership" },
+  { trigger: "head of seo", score: 10, reason: "Direct SEO owner" },
+  { trigger: "head seo", score: 10, reason: "SEO ownership" },
+  { trigger: "vp digital marketing", score: 10, reason: "Direct digital owner" },
+  { trigger: "director of digital marketing", score: 10, reason: "Direct digital owner" },
+  { trigger: "director digital marketing", score: 10, reason: "Digital Marketing leadership" },
+  { trigger: "head of digital marketing", score: 10, reason: "Direct digital owner" },
+  { trigger: "head digital marketing", score: 10, reason: "Digital Marketing leadership" },
+  { trigger: "global digital marketing director", score: 10, reason: "Global pipeline ownership" },
+  { trigger: "international marketing director", score: 10, reason: "Global pipeline ownership" },
+  { trigger: "vp demand generation", score: 10, reason: "Pipeline owner" },
+  { trigger: "director of demand generation", score: 10, reason: "Pipeline owner" },
+  { trigger: "director demand generation", score: 10, reason: "Demand Gen ownership" },
+  { trigger: "head of demand generation", score: 10, reason: "Pipeline owner" },
+  { trigger: "head demand generation", score: 10, reason: "Demand Gen ownership" },
+  { trigger: "vp performance marketing", score: 10, reason: "Acquisition owner" },
+  { trigger: "director of performance marketing", score: 10, reason: "Acquisition owner" },
+  { trigger: "director performance marketing", score: 10, reason: "Performance ownership" },
+  { trigger: "head of performance marketing", score: 10, reason: "Acquisition owner" },
+  { trigger: "head performance marketing", score: 10, reason: "Performance ownership" },
+  { trigger: "vp revenue marketing", score: 10, reason: "Revenue pipeline owner" },
+  { trigger: "director of revenue marketing", score: 10, reason: "Revenue pipeline owner" },
+  { trigger: "director revenue marketing", score: 10, reason: "Revenue pipeline ownership" },
+  { trigger: "head of revenue marketing", score: 10, reason: "Revenue pipeline owner" },
+  { trigger: "head revenue marketing", score: 10, reason: "Revenue pipeline ownership" },
+  { trigger: "vp acquisition marketing", score: 10, reason: "Acquisition ownership" },
+  { trigger: "director acquisition marketing", score: 10, reason: "Acquisition ownership" },
+  { trigger: "head acquisition marketing", score: 10, reason: "Acquisition ownership" },
+  { trigger: "vp lifecycle marketing", score: 10, reason: "Lifecycle ownership" },
+  { trigger: "director lifecycle marketing", score: 10, reason: "Lifecycle ownership" },
+  { trigger: "head lifecycle marketing", score: 10, reason: "Lifecycle ownership" },
+  { trigger: "director growth marketing", score: 10, reason: "Growth pipeline ownership" },
+  { trigger: "head growth marketing", score: 10, reason: "Growth pipeline ownership" },
+  { trigger: "vp content marketing", score: 9, reason: "AI content buyer" },
+  { trigger: "director of content marketing", score: 9, reason: "AI content buyer" },
+  { trigger: "director content marketing", score: 9, reason: "AI content buyer" },
+  { trigger: "head of content marketing", score: 9, reason: "AI content buyer" },
+  { trigger: "head content marketing", score: 9, reason: "AI content buyer" },
+  { trigger: "vp marketing operations", score: 9, reason: "Martech owner" },
+  { trigger: "director of marketing operations", score: 9, reason: "Martech owner" },
+  { trigger: "director marketing operations", score: 9, reason: "MarTech ownership" },
+  { trigger: "head of marketing operations", score: 9, reason: "Martech owner" },
+  { trigger: "head marketing operations", score: 9, reason: "MarTech ownership" },
+  { trigger: "chief growth officer", score: 9, reason: "Executive growth owner" },
+  { trigger: "vp gtm", score: 8, reason: "GTM owner" },
+  { trigger: "director of gtm", score: 8, reason: "GTM owner" },
+  { trigger: "director gtm", score: 8, reason: "GTM ownership" },
+  { trigger: "head of gtm", score: 8, reason: "GTM owner" },
+  { trigger: "head gtm", score: 8, reason: "GTM ownership" },
+  { trigger: "go to market", score: 8, reason: "GTM owner" },
+  { trigger: "vp go to market", score: 8, reason: "GTM ownership" },
+  { trigger: "director go to market", score: 8, reason: "GTM ownership" },
+  { trigger: "head go to market", score: 8, reason: "GTM ownership" },
+  { trigger: "director brand marketing", score: 8, reason: "Brand-to-demand bridge" },
+  { trigger: "head brand marketing", score: 8, reason: "Brand-to-demand bridge" },
+  { trigger: "head ai enablement", score: 8, reason: "AI transformation ownership" },
+  { trigger: "vp operations", score: 7, reason: "Pipeline infrastructure influence" },
+  { trigger: "svp operations", score: 7, reason: "Infrastructure ownership" },
+  { trigger: "chief product officer", score: 7, reason: "Product-led growth alignment" },
+  { trigger: "head ai enablement", score: 7, reason: "AI automation influence" },
+  { trigger: "product marketing", score: 6, reason: "Relevant mainly for GTM" },
+  { trigger: "chief product officer", score: 6, reason: "Relevant to GTM only" },
+  { trigger: "vp strategy", score: 6, reason: "Strategic influence" },
+  { trigger: "director strategy", score: 6, reason: "Strategic influence" },
+  { trigger: "head strategy", score: 6, reason: "Strategic influence" },
+  { trigger: "founder", score: 5, reason: "Useful mainly in smaller firms" },
+  { trigger: "co-founder", score: 5, reason: "Exec authority variable" },
+  { trigger: "cofounder", score: 5, reason: "Exec authority variable" },
+  { trigger: "ceo", score: 4, reason: "Broad executive" },
+  { trigger: "coo", score: 3, reason: "Operational stakeholder" },
+  { trigger: "cto", score: 2, reason: "Technical stakeholder but not owner" },
+  { trigger: "cio", score: 2, reason: "Technical stakeholder but not owner" },
+  { trigger: "brand", score: 2, reason: "Often non-performance" },
+  { trigger: "customer experience", score: 2, reason: "Low fit" },
+  { trigger: "cfo", score: 1, reason: "Finance gatekeeper" },
+  { trigger: "chief of staff", score: 1, reason: "Staff support role" },
+  { trigger: "communications", score: 1, reason: "PR/comms function" },
+  { trigger: "customer success", score: 0, reason: "Irrelevant" },
+  { trigger: "business development", score: 0, reason: "Irrelevant" },
+  { trigger: "sales", score: 0, reason: "Irrelevant" },
+  { trigger: "account", score: 0, reason: "Irrelevant" },
+  { trigger: "event", score: 0, reason: "Irrelevant" },
+  { trigger: "events", score: 0, reason: "Irrelevant" },
 ];
 
-const STAKEHOLDER_KEYWORDS = [
-  "gtm", "go-to-market", "go to market",
-  "operations", "vp operations", "head of operations", "coo",
-  "product lead", "head of product", "vp product", "cpo",
-  "director of product", "product director",
+// ─── ICP Include Keywords (Industry + Title Pairs) ─────────────────────────
+
+export const ICP_INDUSTRIES = [
+  "Software Development", "SaaS", "Internet", "Information Technology Services",
+  "Marketing and Advertising", "Computer Software", "Financial Services Technology",
+  "Cybersecurity", "Artificial Intelligence", "Machine Learning", "Cloud Computing",
+  "Developer Tools", "Data Analytics", "Enterprise Software", "Business Intelligence",
+  "MarTech", "FinTech", "HealthTech", "EdTech", "LegalTech", "PropTech", "HRTech",
+  "Ecommerce Platforms", "B2B Marketplaces", "API Infrastructure", "Workflow Automation",
+  "Sales Enablement Platforms", "CRM Platforms", "Product Analytics",
+  "Growth Infrastructure Platforms", "AI Infrastructure Companies",
 ];
 
-const INFLUENCE_KEYWORDS = [
-  "founder", "co-founder", "cofounder",
-  "ceo", "chief executive",
-  "managing director", "president",
-  "partner", "general partner",
+export const ICP_INCLUDE_TITLES = [
+  "Chief Marketing Officer", "CMO", "Chief Growth Officer", "CGO",
+  "Chief Revenue Officer Marketing", "VP Marketing", "SVP Marketing",
+  "Global VP Marketing", "Director Marketing", "Head Marketing",
+  "VP Growth", "Director Growth", "Head Growth",
+  "VP SEO", "Director SEO", "Head SEO",
+  "VP Digital Marketing", "Director Digital Marketing", "Head Digital Marketing",
+  "VP Performance Marketing", "Director Performance Marketing", "Head Performance Marketing",
+  "VP Demand Generation", "Director Demand Generation", "Head Demand Generation",
+  "VP Content Marketing", "Director Content Marketing", "Head Content Marketing",
+  "VP Acquisition Marketing", "Director Acquisition Marketing", "Head Acquisition Marketing",
+  "VP Lifecycle Marketing", "Director Lifecycle Marketing", "Head Lifecycle Marketing",
+  "VP Revenue Marketing", "Director Revenue Marketing", "Head Revenue Marketing",
+  "VP GTM", "VP Go To Market", "Director GTM", "Director Go To Market",
+  "Head GTM", "Head Go To Market",
+  "Director Growth Marketing", "Head Growth Marketing",
+  "Global Digital Marketing Director", "International Marketing Director",
+  "VP Marketing Operations", "Director Marketing Operations", "Head Marketing Operations",
+  "Head AI Enablement",
 ];
 
-const PERIPHERAL_KEYWORDS = [
-  "it support", "it specialist", "systems admin", "sysadmin",
-  "finance analyst", "financial analyst", "accountant",
-  "it manager", "it director",
-  "finance manager", "finance director",
+export const ICP_EXCLUDE_KEYWORDS = [
+  "sales", "selling", "account", "accounts", "accounting", "accountant",
+  "account executive", "account manager", "customer success", "customer service",
+  "client service", "support", "service desk", "help desk",
+  "hr", "human resources", "people ops", "people operations",
+  "recruiting", "recruiter", "talent acquisition",
+  "legal", "counsel", "finance", "financial", "controller", "controlling",
+  "treasurer", "payroll", "procurement", "purchasing", "buyer",
+  "assistant", "associate", "coordinator", "supervisor", "deputy", "specialist",
+  "store", "store manager", "boutique", "boutique manager",
+  "branch", "branch manager", "retail", "counter",
+  "hospitality", "event", "events", "exhibitions",
+  "sponsorship", "sponsoring", "training", "learning", "academy",
+  "commerce detail", "gestionnaire", "ressources humaines", "responsable rh",
+  "comptable", "retail operations", "visual merchandising", "shop manager",
 ];
 
-const IRRELEVANT_KEYWORDS = [
-  "sales rep", "sales associate", "sdr", "bdr", "account executive",
-  "hr ", "human resources", "people ops", "recruiter", "talent",
-  "admin", "administrative", "office manager", "receptionist",
-  "junior", "intern", "assistant", "coordinator", "clerk",
-  "customer support", "customer service",
+export const MANAGEMENT_LEVELS = [
+  { level: "C-Suite", include: true, priority: "High", reason: "Needed for selective executive buyers" },
+  { level: "VP", include: true, priority: "High", reason: "Strong budget ownership" },
+  { level: "Director", include: true, priority: "High", reason: "Common execution-level buyer" },
+  { level: "Head", include: true, priority: "High", reason: "Modern functional owner title" },
+  { level: "Founder", include: true, priority: "Medium", reason: "Useful for smaller companies only" },
+  { level: "Owner", include: true, priority: "Medium", reason: "Too noisy in larger-company searches" },
+  { level: "Partner", include: true, priority: "High", reason: "Usually irrelevant noise" },
 ];
+
+export const SCORE_ACTION_MAP: { range: string; meaning: string; action: string }[] = [
+  { range: "10", meaning: "Direct marketing / SEO / growth / demand / revenue owner", action: "Reach first" },
+  { range: "8–9", meaning: "Strong adjacent buyer or influencer", action: "High priority" },
+  { range: "6–7", meaning: "Relevant stakeholder", action: "Second wave" },
+  { range: "4–5", meaning: "Broad executive influence", action: "Use selectively" },
+  { range: "1–3", meaning: "Peripheral stakeholder", action: "Usually deprioritize" },
+  { range: "0", meaning: "Irrelevant", action: "Do not contact" },
+];
+
+// ─── Scoring Engine ─────────────────────────────────────────────────────────
 
 export function computeRichardScore(jobTitle: string): number {
   const t = jobTitle.toLowerCase().trim();
 
-  for (const kw of PRIMARY_KEYWORDS) {
-    if (t.includes(kw)) return 10;
+  for (const rule of SCORING_RULES) {
+    if (t.includes(rule.trigger)) return rule.score;
   }
-  if (/\b(seo|growth|finops)\b/.test(t) && /\b(head|lead|director|vp|chief|senior)\b/.test(t)) {
+
+  if (/\b(marketing|seo|growth|demand gen)\b/.test(t) && /\b(head|lead|director|vp|chief|svp|senior)\b/.test(t)) {
     return 9;
   }
-
-  for (const kw of STAKEHOLDER_KEYWORDS) {
-    if (t.includes(kw)) return 8;
-  }
-  if (/\b(gtm|operations|product)\b/.test(t) && /\b(head|lead|director|vp|chief|manager)\b/.test(t)) {
+  if (/\b(gtm|go.to.market|operations|product)\b/.test(t) && /\b(head|lead|director|vp|chief|manager)\b/.test(t)) {
     return 7;
   }
-
-  for (const kw of INFLUENCE_KEYWORDS) {
-    if (t.includes(kw)) return 5;
-  }
   if (/\bceo\b/.test(t) || /\bfounder\b/.test(t)) {
-    return 6;
-  }
-
-  for (const kw of PERIPHERAL_KEYWORDS) {
-    if (t.includes(kw)) return 2;
+    return 5;
   }
   if (/\b(it|finance|accounting)\b/.test(t)) {
     return 3;
   }
 
-  for (const kw of IRRELEVANT_KEYWORDS) {
+  for (const kw of ICP_EXCLUDE_KEYWORDS) {
     if (t.includes(kw)) return 0;
-  }
-  if (/\b(sales|hr|admin|junior|intern)\b/.test(t)) {
-    return 0;
   }
 
   return 4;
+}
+
+export function getScoreReason(jobTitle: string): string {
+  const t = jobTitle.toLowerCase().trim();
+  for (const rule of SCORING_RULES) {
+    if (t.includes(rule.trigger)) return rule.reason;
+  }
+  if (/\b(marketing|seo|growth|demand gen)\b/.test(t) && /\b(head|lead|director|vp|chief|svp|senior)\b/.test(t)) {
+    return "Marketing leadership match";
+  }
+  if (/\b(gtm|go.to.market|operations|product)\b/.test(t) && /\b(head|lead|director|vp|chief|manager)\b/.test(t)) {
+    return "GTM/Ops stakeholder match";
+  }
+  if (/\bceo\b/.test(t) || /\bfounder\b/.test(t)) return "Broad executive";
+  if (/\b(it|finance|accounting)\b/.test(t)) return "Peripheral department";
+  for (const kw of ICP_EXCLUDE_KEYWORDS) {
+    if (t.includes(kw)) return "Excluded keyword match";
+  }
+  return "No specific rule matched";
 }
 
 export function scoreToTier(score: number): LeadTier {
@@ -165,4 +318,97 @@ export function extractRefinementSuggestions(leads: Lead[]): RefinementSuggestio
       occurrences: v.count,
       fromTitles: Array.from(v.titles),
     }));
+}
+
+// ─── Company Classification ─────────────────────────────────────────────────
+
+export interface CompanyClassification {
+  companyName: string;
+  employees: string;
+  industry: string;
+  website: string;
+  linkedinUrl: string;
+  address: string;
+  category: "Likely Residential" | "Mixed-Use" | "Commercial" | "Industrial" | "Unknown";
+  reasoning: string;
+}
+
+const COMMERCIAL_KEYWORDS = [
+  "avenue", "boulevard", "business park", "tech park", "industrial",
+  "office park", "tower", "plaza", "center", "centre", "floor",
+  "suite", "building", "campus",
+];
+
+const RESIDENTIAL_KEYWORDS = [
+  "chemin", "route", "ch.", "rue de la", "village", "hamlet",
+  "cottage", "villa", "maison", "residence", "impasse",
+];
+
+export function classifyCompany(lead: Lead): CompanyClassification {
+  const addr = (lead.location || "").toLowerCase();
+  const emp = parseInt(lead.employeeCount) || 0;
+  const industry = (lead.industry || "").toLowerCase();
+
+  let category: CompanyClassification["category"] = "Unknown";
+  let reasoning = "";
+
+  const hasCommercialAddr = COMMERCIAL_KEYWORDS.some((kw) => addr.includes(kw));
+  const hasResidentialAddr = RESIDENTIAL_KEYWORDS.some((kw) => addr.includes(kw));
+
+  const isTinyCompany = emp > 0 && emp <= 10;
+  const isMidSize = emp > 10 && emp <= 50;
+  const isLarger = emp > 50;
+
+  const isServiceIndustry = /consulting|accounting|media|events|tourism|food|wellness|art/i.test(industry);
+  const isTechIndustry = /software|saas|it services|technology|ai|data|cloud|fintech/i.test(industry);
+  const isTradeIndustry = /construction|architecture|engineering|environmental|renewable/i.test(industry);
+
+  if (hasCommercialAddr && isLarger) {
+    category = "Commercial";
+    reasoning = `Large company (${emp} employees) at a commercial address.`;
+  } else if (hasCommercialAddr && isMidSize) {
+    category = "Commercial";
+    reasoning = `Mid-size company in a commercial/office district.`;
+  } else if (hasResidentialAddr && isTinyCompany && isServiceIndustry) {
+    category = "Likely Residential";
+    reasoning = `Small ${industry} company (${emp} employees) in a residential area; likely a home-based studio.`;
+  } else if (hasResidentialAddr && isTinyCompany && isTechIndustry) {
+    category = "Likely Residential";
+    reasoning = `Tech startup (${emp} employees) in a residential village; likely a home office.`;
+  } else if (hasResidentialAddr && isTinyCompany) {
+    category = "Likely Residential";
+    reasoning = `Small company in a rural/residential area; likely home-based.`;
+  } else if (hasResidentialAddr && isMidSize && isTradeIndustry) {
+    category = "Mixed-Use";
+    reasoning = `${industry} firm in a village setting; likely a professional studio or trade shop.`;
+  } else if (hasResidentialAddr && isMidSize) {
+    category = "Mixed-Use";
+    reasoning = `Mid-size company in a residential/suburban sector; likely professional villa office.`;
+  } else if (!hasResidentialAddr && !hasCommercialAddr && isTinyCompany) {
+    category = "Likely Residential";
+    reasoning = `Small company (${emp} employees); address suggests home-based operation.`;
+  } else if (!hasResidentialAddr && !hasCommercialAddr && isMidSize) {
+    category = "Mixed-Use";
+    reasoning = `Mid-size company; likely in a mixed commercial/residential zone.`;
+  } else if (isLarger) {
+    category = "Commercial";
+    reasoning = `Larger company (${emp} employees); assumed commercial premises.`;
+  } else if (addr) {
+    category = "Mixed-Use";
+    reasoning = `Could not conclusively classify; address and size suggest mixed-use.`;
+  } else {
+    category = "Unknown";
+    reasoning = "Insufficient address data for classification.";
+  }
+
+  return {
+    companyName: lead.company,
+    employees: lead.employeeCount || "N/A",
+    industry: lead.industry,
+    website: lead.email ? lead.email.split("@")[1] || "" : "",
+    linkedinUrl: lead.linkedinUrl || "",
+    address: lead.location,
+    category,
+    reasoning,
+  };
 }
